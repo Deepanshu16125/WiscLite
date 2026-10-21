@@ -1,4 +1,5 @@
 //! WiscLite: a small LSM key-value store with WiscKey-style key-value separation.
+pub mod bloom;
 pub mod engine;
 pub mod memtable;
 pub mod sstable;

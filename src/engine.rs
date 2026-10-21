@@ -50,6 +50,12 @@ pub struct Stats {
     /// this is what compaction would multiply.
     pub tree_amplification: f64,
     pub flushes: u64,
+    /// Table probes skipped because the Bloom filter said "definitely absent".
+    pub bloom_negatives: u64,
+    /// Bloom said "maybe" but the key was not in the table.
+    pub bloom_false_positives: u64,
+    /// false_positives / (false_positives + negatives): measured FPR over absent-key probes.
+    pub bloom_fpr: f64,
     pub sstables: usize,
     pub memtable_entries: usize,
 }
@@ -133,7 +139,11 @@ impl Db {
             None => {
                 let mut f = None;
                 for t in self.tables.iter_mut().rev() {
-                    if let Some(e) = t.get(key)? { f = Some(e); break; }
+                    if !t.may_contain(key) { self.stats.bloom_negatives += 1; continue; }
+                    match t.get(key)? {
+                        Some(e) => { f = Some(e); break; }
+                        None => self.stats.bloom_false_positives += 1,
+                    }
                 }
                 f
             }
@@ -169,6 +179,8 @@ impl Db {
             s.write_amplification = s.physical_bytes as f64 / s.logical_bytes as f64;
             s.tree_amplification = s.sst_bytes as f64 / s.logical_bytes as f64;
         }
+        let absent = s.bloom_false_positives + s.bloom_negatives;
+        if absent > 0 { s.bloom_fpr = s.bloom_false_positives as f64 / absent as f64; }
         s.sstables = self.tables.len();
         s.memtable_entries = self.mem.len();
         s

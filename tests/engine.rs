@@ -166,3 +166,16 @@ fn wisckey_writes_less_to_tree() {
     assert!(wa[1].sst_bytes * 10 < wa[0].sst_bytes, "tree should be >10x smaller with separation");
     assert!(wa[1].write_amplification < wa[0].write_amplification);
 }
+
+#[test]
+fn bloom_filters_skip_tables_and_report_fpr() {
+    let d = tmp("bloom");
+    let mut db = Db::open(&d, opts(Mode::WiscKey, 8 << 10)).unwrap();
+    for i in 0..3000u32 { db.put(format!("key{i}").as_bytes(), b"v").unwrap(); }
+    db.flush().unwrap();
+    for i in 0..2000u32 { assert_eq!(db.get(format!("missing{i}").as_bytes()).unwrap(), None); }
+    let s = db.stats();
+    assert!(s.bloom_negatives > 0);
+    assert!(s.bloom_fpr < 0.05, "fpr {}", s.bloom_fpr);
+    assert_eq!(db.get(b"key1234").unwrap(), Some(b"v".to_vec()));
+}
