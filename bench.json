@@ -1,0 +1,55 @@
+{
+  "generated_at_unix": 1792594535,
+  "machine": "Intel(R) Xeon(R) Processor",
+  "memtable_bytes": 4194304,
+  "results": [
+    {
+      "mode": "Baseline",
+      "ops": 50000,
+      "value_size": 1024,
+      "put_secs": 0.218130584,
+      "puts_per_sec": 229220.49298689817,
+      "mb_per_sec": 239.0769741853348,
+      "get_p50_us": 2.929,
+      "get_p99_us": 11.164,
+      "get_mean_us": 3.5205264999999972,
+      "disk_bytes": 54150268,
+      "stats": {
+        "logical_bytes": 52150000,
+        "wal_bytes": 53000000,
+        "vlog_bytes": 0,
+        "sst_bytes": 54150260,
+        "physical_bytes": 107150260,
+        "write_amplification": 2.054655033557047,
+        "tree_amplification": 1.0383558964525408,
+        "flushes": 13,
+        "sstables": 13,
+        "memtable_entries": 0
+      }
+    },
+    {
+      "mode": "WiscKey",
+      "ops": 50000,
+      "value_size": 1024,
+      "put_secs": 0.157450518,
+      "puts_per_sec": 317560.0857661198,
+      "mb_per_sec": 331.215169454063,
+      "get_p50_us": 2.674,
+      "get_p99_us": 5.891,
+      "get_mean_us": 2.788056900000003,
+      "disk_bytes": 54950027,
+      "stats": {
+        "logical_bytes": 52150000,
+        "wal_bytes": 2200000,
+        "vlog_bytes": 51600000,
+        "sst_bytes": 3350020,
+        "physical_bytes": 57150020,
+        "write_amplification": 1.0958776605944391,
+        "tree_amplification": 0.06423815915627996,
+        "flushes": 1,
+        "sstables": 1,
+        "memtable_entries": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WiscLite — Metrics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EEEBDD;--surface:#F7F5EC;--sand:#E4E0CC;--text:#23261C;--muted:#6B6E5A;--olive:#5E6B3A;--olive-d:#3E4A26;--moss:#8A9560;--rust:#9C4A2A;--rule:#D3CFB8;--band:#2F3620}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 "Instrument Sans",system-ui,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:0 28px}
+header{background:var(--band);color:#EEEBDD;padding:64px 0 48px}
+.label{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--moss);font-weight:600}
+h1,h2{font-family:"Instrument Serif",Georgia,serif;font-weight:400;margin:.15em 0}
+h1{font-size:clamp(44px,7vw,76px);line-height:1}h1 em{color:#C9D19E}
+h2{font-size:36px}
+header p{color:#C8C6B2;max-width:640px}
+section{padding:56px 0;border-bottom:1px solid var(--rule)}
+section.sand{background:var(--sand)}section.surface{background:var(--surface)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0;border-top:1px solid var(--rule)}
+.kpi{padding:22px 20px 22px 0;border-bottom:1px solid var(--rule)}
+.kpi b{display:block;font-family:"Instrument Serif",serif;font-size:46px;font-weight:400;color:var(--olive-d);line-height:1.05}
+.kpi span{color:var(--muted);font-size:14px}
+.chart{margin:18px 0 6px}.row{display:grid;grid-template-columns:110px 1fr 110px;align-items:center;gap:14px;margin:10px 0}
+.row .name{font-weight:600;font-size:14px}.bar{height:26px;display:flex;background:transparent;border-bottom:1px solid var(--rule)}
+.bar i{display:block;height:100%;transition:width .8s ease}.row .val{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
+.legend{display:flex;gap:22px;font-size:13px;color:var(--muted);margin-top:8px}.legend i{display:inline-block;width:11px;height:11px;margin-right:6px;vertical-align:-1px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--rule)}th{font-weight:600;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+a{color:var(--rust);text-decoration:none;border-bottom:1px solid transparent}a:hover{border-color:var(--rust)}
+.note{color:var(--muted);font-size:14px;max-width:720px}
+footer{padding:36px 0;color:var(--muted);font-size:14px}
+</style></head><body>
+<header><div class="wrap"><div class="label">Storage engine · WiscKey, FAST '16</div>
+<h1>Wisc<em>Lite</em> metrics</h1>
+<p id="sub">Separating keys from values in an LSM-tree. Real numbers from <code>wisclite bench</code>.</p></div></header>
+
+<section class="surface"><div class="wrap"><div class="label">Headline</div><h2>What separation buys</h2><div class="kpis" id="kpis"></div></div></section>
+
+<section><div class="wrap"><div class="label">Write amplification</div><h2>Where the bytes go</h2>
+<p class="note">Physical bytes written per logical byte, split by file. The baseline writes every value twice (WAL, then sstable); WiscKey writes it once, to the value log.</p>
+<div class="chart" id="wa"></div>
+<div class="legend"><span><i style="background:var(--moss)"></i>WAL</span><span><i style="background:var(--olive)"></i>Value log</span><span><i style="background:var(--rust)"></i>SSTables (LSM tree)</span></div></div></section>
+
+<section class="sand"><div class="wrap"><div class="label">Projection</div><h2>Add compaction, and it diverges</h2>
+<p class="note">WiscLite skips compaction. A leveled LSM rewrites tree data roughly <i>k</i> times (the paper cites up to ~10× per level). Modelled WA = WAL + vlog + k × sstable bytes, using the measured bytes above.</p>
+<div class="chart" id="proj"></div></div></section>
+
+<section class="surface"><div class="wrap"><div class="label">Speed</div><h2>Throughput &amp; latency</h2><div class="chart" id="tp"></div><div class="chart" id="lat"></div></div></section>
+
+<section><div class="wrap"><div class="label">Raw</div><h2>Full results</h2><table id="tbl"></table><p class="note" id="meta"></p></div></section>
+<footer><div class="wrap">Lu, Pillai, Arpaci-Dusseau &amp; Arpaci-Dusseau, <a href="https://www.usenix.org/system/files/conference/fast16/fast16-papers-lu.pdf">WiscKey: Separating Keys from Values in SSD-conscious Storage</a>, USENIX FAST 2016.</div></footer>
+<script>
+const EMBEDDED = {
+  "generated_at_unix": 1792594535,
+  "machine": "Intel(R) Xeon(R) Processor",
+  "memtable_bytes": 4194304,
+  "results": [
+    {
+      "mode": "Baseline",
+      "ops": 50000,
+      "value_size": 1024,
+      "put_secs": 0.218130584,
+      "puts_per_sec": 229220.49298689817,
+      "mb_per_sec": 239.0769741853348,
+      "get_p50_us": 2.929,
+      "get_p99_us": 11.164,
+      "get_mean_us": 3.5205264999999972,
+      "disk_bytes": 54150268,
+      "stats": {
+        "logical_bytes": 52150000,
+        "wal_bytes": 53000000,
+        "vlog_bytes": 0,
+        "sst_bytes": 54150260,
+        "physical_bytes": 107150260,
+        "write_amplification": 2.054655033557047,
+        "tree_amplification": 1.0383558964525408,
+        "flushes": 13,
+        "sstables": 13,
+        "memtable_entries": 0
+      }
+    },
+    {
+      "mode": "WiscKey",
+      "ops": 50000,
+      "value_size": 1024,
+      "put_secs": 0.157450518,
+      "puts_per_sec": 317560.0857661198,
+      "mb_per_sec": 331.215169454063,
+      "get_p50_us": 2.674,
+      "get_p99_us": 5.891,
+      "get_mean_us": 2.788056900000003,
+      "disk_bytes": 54950027,
+      "stats": {
+        "logical_bytes": 52150000,
+        "wal_bytes": 2200000,
+        "vlog_bytes": 51600000,
+        "sst_bytes": 3350020,
+        "physical_bytes": 57150020,
+        "write_amplification": 1.0958776605944391,
+        "tree_amplification": 0.06423815915627996,
+        "flushes": 1,
+        "sstables": 1,
+        "memtable_entries": 0
+      }
+    }
+  ]
+};
+const C={wal:'var(--moss)',vlog:'var(--olive)',sst:'var(--rust)',a:'var(--rust)',b:'var(--olive)'};
+const f=(x,d=2)=>Number(x).toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d});
+function bars(el,rows,max,fmt){el.innerHTML=rows.map(r=>`<div class="row"><div class="name">${r.name}</div><div class="bar">${r.parts.map(p=>`<i style="width:${100*p.v/max}%;background:${p.c}" title="${p.t||''}"></i>`).join('')}</div><div class="val">${fmt(r)}</div></div>`).join('')}
+function render(B){
+  const by=m=>B.results.find(r=>r.mode===m), b=by('Baseline'), w=by('WiscKey');
+  const L=r=>r.stats.logical_bytes;
+  document.getElementById('sub').textContent=`${b.ops.toLocaleString()} random puts of ${b.value_size} B values in each mode · ${B.machine}`;
+  document.getElementById('kpis').innerHTML=[
+    [f(b.stats.write_amplification/w.stats.write_amplification,2)+'×','less total write amplification'],
+    [f(b.stats.sst_bytes/w.stats.sst_bytes,1)+'×','smaller LSM tree'],
+    [f(w.stats.write_amplification,3),'WiscKey WA (baseline '+f(b.stats.write_amplification,3)+')'],
+    [b.stats.flushes+' → '+w.stats.flushes,'memtable flushes']].map(k=>`<div class="kpi"><b>${k[0]}</b><span>${k[1]}</span></div>`).join('');
+  const wa=[b,w].map(r=>({name:r.mode,parts:[{v:r.stats.wal_bytes/L(r),c:C.wal},{v:r.stats.vlog_bytes/L(r),c:C.vlog},{v:r.stats.sst_bytes/L(r),c:C.sst}],r}));
+  bars(document.getElementById('wa'),wa,2.4,x=>f(x.r.stats.write_amplification,3)+'×');
+  const ks=[1,5,10],pr=[];ks.forEach(k=>[b,w].forEach(r=>pr.push({name:`${r.mode==='Baseline'?'Base':'Wisc'} k=${k}`,parts:[{v:(r.stats.wal_bytes+r.stats.vlog_bytes+k*r.stats.sst_bytes)/L(r),c:r.mode==='Baseline'?C.a:C.b}]})));
+  const pm=Math.max(...pr.map(p=>p.parts[0].v))*1.05;bars(document.getElementById('proj'),pr,pm,x=>f(x.parts[0].v,2)+'×');
+  const tm=Math.max(b.puts_per_sec,w.puts_per_sec)*1.1;
+  bars(document.getElementById('tp'),[b,w].map(r=>({name:r.mode+' put',parts:[{v:r.puts_per_sec,c:r.mode==='Baseline'?C.a:C.b}],r})),tm,x=>f(x.r.puts_per_sec/1000,0)+'k ops/s');
+  const lm=Math.max(b.get_p99_us,w.get_p99_us)*1.1,lr=[];[b,w].forEach(r=>{lr.push({name:r.mode+' p50',parts:[{v:r.get_p50_us,c:r.mode==='Baseline'?C.a:C.b}],x:r.get_p50_us});lr.push({name:r.mode+' p99',parts:[{v:r.get_p99_us,c:r.mode==='Baseline'?C.a:C.b}],x:r.get_p99_us})});
+  bars(document.getElementById('lat'),lr,lm,x=>f(x.x,1)+' µs get');
+  const keys=[['ops','ops',0],['logical MB',r=>L(r)/1e6,1],['WAL MB',r=>r.stats.wal_bytes/1e6,1],['vlog MB',r=>r.stats.vlog_bytes/1e6,1],['sstable MB',r=>r.stats.sst_bytes/1e6,2],['physical MB',r=>r.stats.physical_bytes/1e6,1],['write amp.',r=>r.stats.write_amplification,3],['tree amp.',r=>r.stats.tree_amplification,3],['puts/s','puts_per_sec',0],['MB/s','mb_per_sec',1],['get p50 µs','get_p50_us',1],['get p99 µs','get_p99_us',1],['flushes',r=>r.stats.flushes,0]];
+  const g=(r,k)=>typeof k==='function'?k(r):r[k];
+  document.getElementById('tbl').innerHTML='<tr><th>Metric</th><th>Baseline</th><th>WiscKey</th></tr>'+keys.map(([n,k,d])=>`<tr><td>${n}</td><td>${f(g(b,k),d)}</td><td>${f(g(w,k),d)}</td></tr>`).join('');
+  document.getElementById('meta').textContent=`Memtable ${B.memtable_bytes/1048576} MiB · generated ${new Date(B.generated_at_unix*1000).toLocaleString()} · no per-write fsync; gets served from OS page cache.`;
+}
+fetch('bench.json').then(r=>r.json()).then(render).catch(()=>{if(EMBEDDED)render(EMBEDDED);else document.getElementById('sub').textContent='Run `wisclite bench` and serve this folder (python -m http.server) to load bench.json.'});
+</script></body></html>
