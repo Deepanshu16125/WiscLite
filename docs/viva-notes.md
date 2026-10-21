@@ -7,7 +7,7 @@ Analogy: a librarian keeps a shelf sorted. Every time new books arrive, she re-s
 
 ## My numbers (say these)
 - 50,000 puts of 1 KB each, about 52 MB of real data, with compaction on.
-- Baseline wrote 159 MB, a **WA of 3.06×**: the WAL, the flush and then compaction each rewrite every value.
+- Baseline wrote 159 MB, a **WA of 3.05×**: the WAL, the flush and then compaction each rewrite every value.
 - WiscKey wrote 57 MB, a **WA of 1.10×**: each value goes to the vlog once, and compaction moves only 21-byte pointers.
 - At 500,000 puts the gap grows: **4.55× vs 1.16×**. The baseline spent 1.3 GB on compaction, WiscKey 34 MB.
 - Bloom filters skip tables for missing keys, with a measured false-positive rate of about 0.8% (10 bits per key).

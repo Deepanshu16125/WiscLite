@@ -42,7 +42,7 @@ Each run uses random 16-byte keys with 1,024-byte random values, a 4 MiB memtabl
 | Logical bytes | 52.2 MB | 52.2 MB |
 | WAL / vlog / flush / compaction | 53.0 / 0 / 54.2 / 52.1 MB | 2.2 / 51.6 / 3.4 / 0 MB |
 | Physical bytes written | 159.3 MB | 57.2 MB |
-| **Write amplification** | **3.06×** | **1.10×** |
+| **Write amplification** | **3.05×** | **1.10×** |
 | Tree amplification (flush+compaction) | 2.04 | 0.065 |
 | Flushes / compactions / tables left | 13 / 3 / 4 | 1 / 0 / 1 |
 | Put throughput | 135k ops/s | 259k ops/s |
