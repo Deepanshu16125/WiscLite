@@ -70,6 +70,47 @@ ol.path small{display:block;color:var(--muted)}
 .bctl select{background:var(--surface);color:var(--text);border:1px solid var(--rule);font:14px var(--font-display);padding:8px}
 .bctl .btn{margin:0;cursor:pointer}.bctl .btn:disabled{opacity:.5;cursor:wait}
 .prog{height:10px;border:1px solid var(--rule);background:var(--surface)}.prog i{display:block;height:100%;width:0;background:var(--contrast);transition:width .2s}
+
+#est{background:var(--bg)}
+.estpanel{border:2px solid var(--contrast);box-shadow:0 0 0 1px rgba(255,176,0,.15),0 0 46px rgba(255,176,0,.18),inset 0 0 60px rgba(255,176,0,.04);background:var(--surface);padding:40px 44px;margin:0 -12px}
+.estflag{background:var(--contrast);color:var(--on-accent);padding:1px 8px;font-weight:700}
+.esth{font-size:clamp(28px,4vw,44px);margin:.25em 0 .4em}
+.estread{display:flex;align-items:baseline;gap:14px}
+.estbig{font:800 clamp(56px,8vw,96px)/1 var(--font-display);color:var(--contrast);text-shadow:var(--glow);font-variant-numeric:tabular-nums}
+.estsub{font:14px var(--font-display);color:var(--muted)}
+.big-slider{display:block;position:relative;margin:26px 0 44px;padding:0 14px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.big-slider input,.small-slider input{-webkit-appearance:none;appearance:none;width:100%;background:transparent;height:48px;margin:0;cursor:pointer;touch-action:pan-y}
+.big-slider input::-webkit-slider-runnable-track{height:14px;background:linear-gradient(90deg,var(--contrast) var(--p,60%),#2a251d var(--p,60%));border:1px solid var(--rule)}
+.big-slider input::-moz-range-track{height:14px;background:#2a251d;border:1px solid var(--rule)}
+.big-slider input::-moz-range-progress{height:14px;background:var(--contrast)}
+.big-slider input::-webkit-slider-thumb{-webkit-appearance:none;width:38px;height:38px;margin-top:-13px;border-radius:50%;background:var(--contrast);border:4px solid var(--surface);box-shadow:0 0 0 2px var(--contrast),0 0 22px rgba(255,176,0,.55)}
+.big-slider input::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:var(--contrast);border:4px solid var(--surface);box-shadow:0 0 0 2px var(--contrast),0 0 22px rgba(255,176,0,.55)}
+.big-slider input:focus-visible{outline:2px dashed var(--accent);outline-offset:6px}
+.ticks{position:absolute;left:14px;right:14px;top:54px;height:16px;pointer-events:none}
+.ticks span{position:absolute;transform:translateX(-50%);font:12px var(--font-display);color:var(--muted)}
+.ticks span::before{content:"";position:absolute;left:50%;top:-10px;height:7px;border-left:1px solid var(--muted)}
+.estbars{position:relative;margin:8px 0 10px}
+.ebar{display:grid;grid-template-columns:110px 1fr 120px;gap:16px;align-items:center;margin:14px 0}
+.en{font:700 15px var(--font-display);color:var(--contrast)}.ebar.w .en{color:var(--accent)}
+.et{height:40px;background:#221e17;border:1px solid var(--rule)}
+.et i{display:block;height:100%;width:0;background:var(--contrast);transition:width .25s ease-out;box-shadow:0 0 18px rgba(255,176,0,.35)}
+.ebar.w .et i{background:var(--accent);box-shadow:0 0 18px rgba(127,212,138,.35)}
+.ev{font:800 26px var(--font-display);color:var(--contrast);font-variant-numeric:tabular-nums}.ebar.w .ev{color:var(--accent)}
+.eone{position:absolute;top:0;bottom:0;border-left:2px dashed var(--text);opacity:.6;pointer-events:none;transition:left .25s ease-out}
+.eone span{position:absolute;bottom:-20px;left:6px;white-space:nowrap;font:11px var(--font-display);color:var(--muted)}
+.estgap{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin:34px 0 22px}
+#e-gap{font:800 clamp(64px,10vw,128px)/1 var(--font-display);color:var(--accent);text-shadow:0 0 30px rgba(127,212,138,.35);font-variant-numeric:tabular-nums}
+#e-gap.neg{color:#ff7a6b;text-shadow:none}
+.small-slider{display:block;max-width:520px;margin:10px 0 16px}
+.small-slider span{font:13px var(--font-display);color:var(--muted)}.small-slider b{color:var(--text);margin-left:8px}
+.small-slider input{height:36px}
+.small-slider input::-webkit-slider-runnable-track{height:6px;background:var(--rule)}
+.small-slider input::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:-8px;border-radius:50%;background:var(--accent);border:3px solid var(--surface)}
+.small-slider input::-moz-range-track{height:6px;background:var(--rule)}
+.small-slider input::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);border:3px solid var(--surface)}
+@media (max-width:760px){.estpanel{padding:26px 18px;margin:0}.ebar{grid-template-columns:76px 1fr 84px}.ev{font-size:18px}}
+@media (prefers-reduced-motion:reduce){.et i,.eone{transition:none}.estbig,#e-gap{text-shadow:none}}
 </style></head><body>
 <header class="band hero"><div class="wrap">
 <div class="label">Storage engine · WiscKey, FAST '16</div>
@@ -112,16 +153,25 @@ ol.path small{display:block;color:var(--muted)}
 <div id="bout"></div>
 </div></section>
 
-<section class="sand" id="est"><div class="wrap"><div class="label">What if</div><h2>Drag the value size and see the gap move</h2>
-<p class="note"><b style="color:var(--contrast)">Estimate</b> from the measured model: WAL + vlog + flush + compaction rewrites ≈ max(0, log₄(tree / memtable) − 1), using real record sizes. The model is calibrated against real runs (50k × 1 KB: 3.05× vs 1.10× measured; 500k: 4.55× vs 1.16×).</p>
-<div class="cols" style="margin-top:18px">
-<label class="slider"><span>value size <b id="e-vs-l"></b></span><input type="range" id="e-vs" min="4" max="14" step="0.25" value="10"></label>
-<label class="slider"><span>keys <b id="e-n-l"></b></span><input type="range" id="e-n" min="3" max="7" step="0.05" value="4.7"></label>
+<section id="est"><div class="wrap"><div class="estpanel">
+<div class="label">What if · <span class="estflag">estimate</span></div>
+<h2 class="esth">drag the value size, watch the gap</h2>
+<div class="estread"><span class="estbig" id="e-vs-big">1 KB</span><span class="estsub">per value</span></div>
+<label class="big-slider" for="e-vs"><span class="sr">value size</span>
+<input type="range" id="e-vs" min="4" max="14" step="0.25" value="10" aria-label="value size" aria-valuetext="1 KB">
+<span class="ticks" aria-hidden="true"><span style="left:0%">16B</span><span style="left:40%">256B</span><span style="left:60%">1KB</span><span style="left:80%">4KB</span><span style="left:100%">16KB</span></span></label>
+<div class="estbars">
+ <div class="ebar"><div class="en">baseline</div><div class="et"><i id="e-bb"></i></div><div class="ev" id="e-bv">–</div></div>
+ <div class="ebar w"><div class="en">wisckey</div><div class="et"><i id="e-bw"></i></div><div class="ev" id="e-wv">–</div></div>
+ <div class="eone" id="e-one"><span>1.0× = just the data</span></div>
 </div>
-<div class="chart" id="e-bars"></div>
+<div class="estgap"><span id="e-gap">–</span><span class="estsub" id="e-gapsub">less writing with WiscKey</span></div>
+<label class="small-slider" for="e-n"><span>keys <b id="e-n-l"></b></span><input type="range" id="e-n" min="3" max="7" step="0.05" value="4.7" aria-label="number of keys"></label>
+<span id="e-vs-l" hidden></span><div id="e-bars" hidden></div>
 <div class="kpis" id="e-kpis"></div>
 <p class="note" id="e-note"></p>
-</div></section>
+<p class="note"><b style="color:var(--contrast)">Estimate</b> from the measured model: WAL + vlog + flush + compaction rewrites ≈ max(0, log₄(tree / memtable) − 1), using real record sizes. It is calibrated against real runs: at 50k × 1 KB it predicts 2.92× vs 1.09×, against 3.05× vs 1.10× measured. Measured runs are on the dashboard.</p>
+</div></div></section>
 
 
 <section class="surface"><div class="wrap cols">
@@ -662,5 +712,5 @@ ol.path small{display:block;color:var(--muted)}
 </script>
 <script src="play.js?v=7"></script>
 <script src="web/pkg/wisclite_wasm.js?v=7"></script>
-<script src="try.js?v=7"></script>
+<script src="try.js?v=8"></script>
 </body></html>

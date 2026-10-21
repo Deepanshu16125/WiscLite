@@ -111,19 +111,24 @@
     };
   }
   function draw() {
-    const V = Math.round(Math.pow(2, +$('e-vs').value)), N = Math.round(Math.pow(10, +$('e-n').value));
-    $('e-vs-l').textContent = kb(V); $('e-n-l').textContent = N.toLocaleString();
-    const e = est(V, N), tot = x => x.wal + x.vlog + x.flush + x.cmp, tb = tot(e.base), tw = tot(e.wisc), max = Math.max(tb, tw, 1) * 1.08;
-    const row = (name, x, c) => `<div class="row"><div class="name">${name}</div><div class="bar">` +
-      [[x.wal, 'var(--accent-soft)'], [x.vlog, 'var(--accent)'], [x.flush, 'var(--contrast)'], [x.cmp, 'var(--accent-deep)']].map(([v, col]) => `<i style="width:${100 * v / max}%;background:${col}"></i>`).join('') +
-      `<b class="tick" style="left:${100 / max}%"></b></div><div class="val" style="color:${c}">≈ ${fmt(tot(x))}×</div></div>`;
-    $('e-bars').innerHTML = row('Baseline', e.base, 'var(--contrast)') + row('WiscKey', e.wisc, 'var(--accent)') +
-      '<div class="legend"><span><i style="background:var(--accent-soft)"></i>WAL</span><span><i style="background:var(--accent)"></i>vlog</span><span><i style="background:var(--contrast)"></i>flush</span><span><i style="background:var(--accent-deep)"></i>compaction</span><span>dashed line = 1.0× (the data itself)</span></div>';
+    const x = +$('e-vs').value, V = Math.round(Math.pow(2, x)), N = Math.round(Math.pow(10, +$('e-n').value));
+    const label = V >= 1024 ? fmt(V / 1024, V % 1024 ? 1 : 0) + ' KB' : V + ' B';
+    $('e-vs-big').textContent = label; $('e-vs').setAttribute('aria-valuetext', label);
+    $('e-vs').style.setProperty('--p', (100 * (x - 4) / 10) + '%');
+    $('e-n-l').textContent = N.toLocaleString();
+    const e = est(V, N), tot = y => y.wal + y.vlog + y.flush + y.cmp, tb = tot(e.base), tw = tot(e.wisc), max = Math.max(tb, tw, 1.2) * 1.05;
+    $('e-bb').style.width = (100 * tb / max) + '%'; $('e-bw').style.width = (100 * tw / max) + '%';
+    $('e-bv').textContent = fmt(tb) + '×'; $('e-wv').textContent = fmt(tw) + '×';
+    // 1.0x line, positioned inside the bar track column
+    const track = $('e-bb').parentElement, box = track.parentElement.parentElement.getBoundingClientRect(), tr = track.getBoundingClientRect();
+    $('e-one').style.left = (tr.left - box.left + tr.width / max) + 'px';
     const win = tb / tw;
-    $('e-kpis').innerHTML = [[fmt(tb) + '×', 'baseline WA (estimate)'], [fmt(tw) + '×', 'WiscKey WA (estimate)'], [(win >= 1 ? fmt(win) + '× less' : fmt(1 / win) + '× MORE'), 'WiscKey vs baseline'], [kb(e.base.tree) + ' → ' + kb(e.wisc.tree), 'LSM tree size']]
+    $('e-gap').textContent = win >= 1 ? fmt(win, 1) + '× less writing' : fmt(1 / win, 1) + '× more writing';
+    $('e-gap').classList.toggle('neg', win < 1);
+    $('e-gapsub').textContent = win >= 1 ? 'with WiscKey (estimate)' : 'with WiscKey: values this small cost more to separate than they save';
+    $('e-kpis').innerHTML = [[fmt(tb) + '×', 'baseline WA (estimate)'], [fmt(tw) + '×', 'WiscKey WA (estimate)'], [kb(e.base.tree) + ' → ' + kb(e.wisc.tree), 'LSM tree size'], [fmt(e.base.rew, 1) + '× vs ' + fmt(e.wisc.rew, 1) + '×', 'compaction rewrites per tree byte']]
       .map(k => `<div class="kpi"><b>${k[0]}</b><span>${k[1]}</span></div>`).join('');
-    $('e-note').textContent = V < 64 ? 'With tiny values the 13-byte pointer and the extra vlog header cost more than they save, so WiscKey only pays off once values are larger than the key and pointer. The paper reports the same effect.'
-      : `Compaction rewrites each tree byte ≈ ${fmt(e.base.rew, 1)}× in the baseline vs ${fmt(e.wisc.rew, 1)}× for WiscKey's tiny pointer tree. This is an estimate; see the dashboard for measured runs.`;
+    $('e-note').textContent = V < 64 ? 'With tiny values the 13-byte pointer and the vlog record header outweigh the savings, so WiscKey only pays off once values are larger than the key and pointer. The paper reports the same effect.' : '';
   }
-  if ($('e-vs')) { $('e-vs').addEventListener('input', draw); $('e-n').addEventListener('input', draw); draw(); }
+  if ($('e-vs')) { ['input', 'change'].forEach(ev => { $('e-vs').addEventListener(ev, draw); $('e-n').addEventListener(ev, draw); }); window.addEventListener('resize', draw); draw(); }
 })();
