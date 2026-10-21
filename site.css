@@ -1,0 +1,55 @@
+/* WiscLite shared styles.
+   DESIGN TOKENS: palette + fonts live ONLY in this :root block. Swap them here
+   (and the Google Fonts <link> in each page) to re-theme index.html and metrics.html. */
+:root{
+  --bg:#EEEBDD; --surface:#F7F5EC; --sand:#E4E0CC;
+  --text:#23261C; --muted:#6B6E5A; --rule:#D3CFB8;
+  --band:#2F3620; --band-text:#EEEBDD; --band-muted:#C8C6B2; --band-accent:#C9D19E;
+  --accent:#5E6B3A; --accent-deep:#3E4A26; --accent-soft:#8A9560;  /* WiscKey series */
+  --contrast:#9C4A2A;                                               /* baseline series, links */
+  --font-display:"Instrument Serif",Georgia,serif;
+  --font-body:"Instrument Sans",system-ui,sans-serif;
+  --maxw:1040px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 var(--font-body)}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+header.band{background:var(--band);color:var(--band-text);padding:64px 0 48px}
+header.band p{color:var(--band-muted);max-width:660px}
+.label{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-soft);font-weight:600}
+h1,h2,h3{font-family:var(--font-display);font-weight:400;margin:.15em 0}
+h1{font-size:clamp(44px,7vw,80px);line-height:1}h1 em{color:var(--band-accent)}
+h2{font-size:36px;line-height:1.1}h3{font-size:24px}
+section{padding:56px 0;border-bottom:1px solid var(--rule)}
+section.sand{background:var(--sand)}section.surface{background:var(--surface)}
+a{color:var(--contrast);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .2s}
+a:hover{border-color:var(--contrast)}
+header.band a{color:var(--band-accent)}header.band a:hover{border-color:var(--band-accent)}
+code,pre{font:14px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}
+pre{background:var(--surface);border-left:2px solid var(--accent);padding:16px 18px;overflow:auto;margin:16px 0}
+.note{color:var(--muted);font-size:14px;max-width:720px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));border-top:1px solid var(--rule)}
+.kpi{padding:22px 20px 22px 0;border-bottom:1px solid var(--rule)}
+.kpi b{display:block;font-family:var(--font-display);font-size:46px;font-weight:400;color:var(--accent-deep);line-height:1.05}
+.kpi span{color:var(--muted);font-size:14px}
+.chart{margin:18px 0 6px}
+.row{display:grid;grid-template-columns:130px 1fr 120px;align-items:center;gap:14px;margin:10px 0}
+.row .name{font-weight:600;font-size:14px}.row .val{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
+.bar{position:relative;height:26px;display:flex;border-bottom:1px solid var(--rule)}
+.bar i{display:block;height:100%;transition:width .6s ease}
+.bar .tick{position:absolute;top:-4px;bottom:-4px;width:0;border-left:1.5px dashed var(--text);opacity:.65}
+.bar .tick span{position:absolute;top:-18px;left:-10px;font-size:11px;color:var(--muted);white-space:nowrap}
+.bar .mean{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--text)}
+.legend{display:flex;flex-wrap:wrap;gap:22px;font-size:13px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:11px;height:11px;margin-right:6px;vertical-align:-1px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--rule)}
+th{font-weight:600;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+.btn{display:inline-block;padding:11px 18px;border:1px solid currentColor;font-weight:600;font-size:15px;margin:6px 10px 0 0}
+.btn.primary{background:var(--band-accent);color:var(--band);border-color:var(--band-accent)}
+.btn:hover{border-bottom-width:1px;opacity:.9}
+input[type=range]{accent-color:var(--accent);width:100%}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+@media (max-width:760px){.cols{grid-template-columns:1fr}.row{grid-template-columns:90px 1fr 90px}}
+footer{padding:36px 0;color:var(--muted);font-size:14px}

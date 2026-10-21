@@ -39,6 +39,8 @@ fn http_api_put_get_scan_stats_dashboard() {
     let v: serde_json::Value = serde_json::from_str(&b).unwrap();
     assert_eq!(v["mode"], "wisckey");
     assert!(v["stats"]["logical_bytes"].as_u64().unwrap() > 0);
+    assert_eq!(req(&addr, "GET", "/site.css", "").0, 200);
+    assert!(req(&addr, "GET", "/metrics.html", "").1.contains("metrics"));
     let (c, b) = req(&addr, "GET", "/", "");
     assert_eq!(c, 200);
     assert!(b.contains("WiscLite"));

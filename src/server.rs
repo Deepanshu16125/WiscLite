@@ -1,6 +1,6 @@
 //! `wisclite serve`: a tiny single-threaded HTTP/1.1 server (std only) bound to localhost.
 //!
-//! GET  /, /metrics.html   dashboard (from disk if present, else the embedded copy)
+//! GET  /, /index.html, /metrics.html, /site.css, /play.js   site (from disk if present, else embedded)
 //! GET  /bench.json        last bench results
 //! GET  /api/stats         live engine stats
 //! POST /api/put           {"key": "...", "value": "..."}
@@ -14,7 +14,12 @@ use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 
-const EMBEDDED_DASHBOARD: &str = include_str!("../metrics.html");
+const EMBEDDED: &[(&str, &str, &str)] = &[
+    ("index.html", "text/html; charset=utf-8", include_str!("../index.html")),
+    ("metrics.html", "text/html; charset=utf-8", include_str!("../metrics.html")),
+    ("site.css", "text/css; charset=utf-8", include_str!("../site.css")),
+    ("play.js", "text/javascript; charset=utf-8", include_str!("../play.js")),
+];
 const MAX_BODY: usize = 16 << 20;
 
 pub struct Request { pub method: String, pub path: String, pub query: Vec<(String, String)>, pub body: Vec<u8> }
@@ -84,9 +89,10 @@ pub fn handle(db: &mut Db, static_dir: &Path, req: &Request) -> (u16, &'static s
     };
     let err = |e: io::Error| j(500, json!({"error": e.to_string()}));
     match (req.method.as_str(), req.path.as_str()) {
-        ("GET", "/") | ("GET", "/metrics.html") => {
-            let html = std::fs::read(static_dir.join("metrics.html")).unwrap_or_else(|_| EMBEDDED_DASHBOARD.as_bytes().to_vec());
-            (200, "text/html; charset=utf-8", html)
+        ("GET", p) if EMBEDDED.iter().any(|(n, _, _)| p == "/" || p.strip_prefix('/') == Some(*n)) => {
+            let name = if p == "/" { "index.html" } else { &p[1..] };
+            let (n, ct, emb) = EMBEDDED.iter().find(|(n, _, _)| *n == name).unwrap();
+            (200, ct, std::fs::read(static_dir.join(n)).unwrap_or_else(|_| emb.as_bytes().to_vec()))
         }
         ("GET", "/bench.json") => match std::fs::read(static_dir.join("bench.json")) {
             Ok(b) => (200, "application/json", b),

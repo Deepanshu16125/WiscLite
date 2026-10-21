@@ -1,5 +1,7 @@
 # WiscLite
 
+[![site](https://img.shields.io/badge/site-live-5E6B3A)](https://deepanshu16125.github.io/WiscLite/) [![metrics](https://img.shields.io/badge/metrics-dashboard-9C4A2A)](https://deepanshu16125.github.io/WiscLite/metrics.html) ![rust](https://img.shields.io/badge/Rust-2024-3E4A26)
+
 **A Rust LSM-tree key-value store that separates keys from values, after the WiscKey paper (USENIX FAST '16).** It also has a baseline mode that stores values inline, so you can measure the difference yourself.
 
 ![metrics dashboard](docs/metrics.png)
@@ -65,6 +67,11 @@ Each run uses random 16-byte keys with 1,024-byte random values, a 4 MiB memtabl
 
 **Reading the numbers.** WiscKey wins on writes because compaction only moves 21-byte pointers. It is slower on range scans (one random vlog read per key, and I don't do the paper's parallel prefetch) and on hit-latency tails. Latency figures are page-cache warm and vary about ±20% between runs; the byte counts are deterministic.
 
+## Website
+- **Landing page:** https://deepanshu16125.github.io/WiscLite/ (`index.html` + `play.js`) has the hero, API, numbered write path, a "play a put" simulation (`?steps=N` fast-forwards it), measured KPIs, built vs not yet, and citations.
+- **Dashboard:** https://deepanshu16125.github.io/WiscLite/metrics.html shows the WA stack with a 1.0× tick, area-true tree sizes, a measured compaction sweep slider (10k–500k puts), throughput, p50/p99/mean, and the real percentile spectrum.
+- All design tokens (palette and fonts) live in one `:root` block in `site.css`. After a new bench, run `python3 scripts/embed_bench.py` to refresh the offline fallback copy.
+
 ## Run it
 ```bash
 cargo test --release                      # 22 tests
@@ -78,7 +85,8 @@ $B --baseline --dir base-db put k v       # inline-value baseline store
 $B stats
 $B bench                                  # 50k x 1KB, both modes -> bench.json
 $B bench --n 500000 --out docs/bench-500k.json
-$B serve --port 7878                      # http://127.0.0.1:7878/ dashboard + API
+$B serve --port 7878                      # http://127.0.0.1:7878/ site, dashboard + API
+$B bench --sweep 10000,50000,200000       # sizes for the dashboard's compaction slider (default 10k..500k)
 ```
 **HTTP API** (`serve`, bound to 127.0.0.1 only): `GET /api/stats`, `POST /api/put {"key","value"}`, `GET /api/get?key=` (or POST), `POST /api/del {"key"}`, `GET /api/scan?start=&end=&limit=`, `POST /api/gc`, `GET /bench.json`. The dashboard is served from `./metrics.html`, falling back to a copy embedded in the binary.
 

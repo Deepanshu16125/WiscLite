@@ -1,55 +1,57 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WiscLite — Metrics</title>
+<title>WiscLite: Metrics</title>
+<meta name="description" content="Measured write amplification, compaction, Bloom filters and latency for WiscLite, a Rust WiscKey-style key-value store.">
+<meta property="og:title" content="WiscLite metrics"><meta property="og:image" content="docs/metrics.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
 <style>
-:root{--bg:#EEEBDD;--surface:#F7F5EC;--sand:#E4E0CC;--text:#23261C;--muted:#6B6E5A;--olive:#5E6B3A;--olive-d:#3E4A26;--moss:#8A9560;--rust:#9C4A2A;--rule:#D3CFB8;--band:#2F3620}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 "Instrument Sans",system-ui,sans-serif}
-.wrap{max-width:1040px;margin:0 auto;padding:0 28px}
-header{background:var(--band);color:#EEEBDD;padding:64px 0 48px}
-.label{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--moss);font-weight:600}
-h1,h2{font-family:"Instrument Serif",Georgia,serif;font-weight:400;margin:.15em 0}
-h1{font-size:clamp(44px,7vw,76px);line-height:1}h1 em{color:#C9D19E}
-h2{font-size:36px}
-header p{color:#C8C6B2;max-width:640px}
-section{padding:56px 0;border-bottom:1px solid var(--rule)}
-section.sand{background:var(--sand)}section.surface{background:var(--surface)}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0;border-top:1px solid var(--rule)}
-.kpi{padding:22px 20px 22px 0;border-bottom:1px solid var(--rule)}
-.kpi b{display:block;font-family:"Instrument Serif",serif;font-size:46px;font-weight:400;color:var(--olive-d);line-height:1.05}
-.kpi span{color:var(--muted);font-size:14px}
-.chart{margin:18px 0 6px}.row{display:grid;grid-template-columns:110px 1fr 110px;align-items:center;gap:14px;margin:10px 0}
-.row .name{font-weight:600;font-size:14px}.bar{height:26px;display:flex;background:transparent;border-bottom:1px solid var(--rule)}
-.bar i{display:block;height:100%;transition:width .8s ease}.row .val{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
-.legend{display:flex;gap:22px;font-size:13px;color:var(--muted);margin-top:8px}.legend i{display:inline-block;width:11px;height:11px;margin-right:6px;vertical-align:-1px}
-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--rule)}th{font-weight:600;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.06em}
-a{color:var(--rust);text-decoration:none;border-bottom:1px solid transparent}a:hover{border-color:var(--rust)}
-.note{color:var(--muted);font-size:14px;max-width:720px}
-footer{padding:36px 0;color:var(--muted);font-size:14px}
+svg text{font-family:var(--font-body);font-size:12px;fill:var(--muted)}
+.trees{display:flex;align-items:flex-end;gap:48px;flex-wrap:wrap;margin-top:20px}
+.trees figure{margin:0}.trees figcaption{font-size:14px;color:var(--muted);margin-top:8px}
+.trees figcaption b{font-family:var(--font-display);font-weight:400;font-size:28px;color:var(--text);display:block}
+.sweepval{font-family:var(--font-display);font-size:30px}
 </style></head><body>
-<header><div class="wrap"><div class="label">Storage engine · WiscKey, FAST '16</div>
+<header class="band"><div class="wrap"><div class="label">Storage engine · WiscKey, FAST '16 · <a href="index.html">overview</a></div>
 <h1>Wisc<em>Lite</em> metrics</h1>
-<p id="sub">Separating keys from values in an LSM-tree. Real numbers from <code>wisclite bench</code>.</p></div></header>
+<p id="sub">Separating keys from values in an LSM tree. Every number here is measured by <code>wisclite bench</code>.</p></div></header>
 
 <section class="surface"><div class="wrap"><div class="label">Headline</div><h2>What separation buys</h2><div class="kpis" id="kpis"></div></div></section>
 
 <section><div class="wrap"><div class="label">Write amplification</div><h2>Where the bytes go</h2>
-<p class="note">Physical bytes written per logical byte, split by file. The baseline writes every value twice (WAL, then sstable); WiscKey writes it once, to the value log.</p>
+<p class="note">Physical bytes written for each logical byte, split by file and including compaction. The dashed line at 1.0× is the data itself; everything to its right is amplification.</p>
 <div class="chart" id="wa"></div>
-<div class="legend"><span><i style="background:var(--moss)"></i>WAL</span><span><i style="background:var(--olive)"></i>Value log</span><span><i style="background:var(--rust)"></i>SSTable flushes</span><span><i style="background:var(--olive-d)"></i>Compaction</span></div></div></section>
+<div class="legend"><span><i style="background:var(--accent-soft)"></i>WAL</span><span><i style="background:var(--accent)"></i>Value log</span><span><i style="background:var(--contrast)"></i>SSTable flushes</span><span><i style="background:var(--accent-deep)"></i>Compaction rewrites</span></div></div></section>
 
-<section class="sand"><div class="wrap"><div class="label">Projection</div><h2>Add compaction, and it diverges</h2>
-<p class="note">The bar above includes measured size-tiered compaction. Deeper trees rewrite tree data more often; this models WA = WAL + vlog + k × flushed sstable bytes for larger <i>k</i>.</p>
-<div class="chart" id="proj"></div></div></section>
+<section class="sand"><div class="wrap"><div class="label">Mechanism</div><h2>The tree is the thing compaction rewrites</h2>
+<p class="note">On-disk LSM tree (sstables only), drawn with area proportional to bytes. WiscKey's tree holds 21-byte pointers, so compaction has almost nothing to move.</p>
+<div class="trees" id="trees"></div></div></section>
 
-<section class="surface"><div class="wrap"><div class="label">Speed</div><h2>Throughput &amp; latency</h2><div class="chart" id="tp"></div><div class="chart" id="lat"></div></div></section>
+<section class="surface"><div class="wrap"><div class="label">Compaction, measured</div><h2>The gap grows with the dataset</h2>
+<p class="note">Real runs at each size: size-tiered compaction (fan-in 4), 4 MiB memtable, 1 KB values. Drag to pick a run.</p>
+<div style="display:flex;gap:28px;align-items:baseline;flex-wrap:wrap;margin:14px 0"><span class="sweepval" id="sweepN"></span><span class="note" id="sweepInfo"></span></div>
+<input type="range" id="sweep" min="0" max="0" step="1">
+<div class="chart" id="sweepBars"></div>
+<svg id="sweepChart" viewBox="0 0 980 300" width="100%" role="img" aria-label="Write amplification versus number of puts"></svg>
+<div class="legend"><span><i style="background:var(--contrast)"></i>Baseline (inline values)</span><span><i style="background:var(--accent)"></i>WiscKey (separated)</span></div></div></section>
 
-<section><div class="wrap"><div class="label">Raw</div><h2>Full results</h2><table id="tbl"></table><p class="note" id="meta"></p></div></section>
-<footer><div class="wrap">Lu, Pillai, Arpaci-Dusseau &amp; Arpaci-Dusseau, <a href="https://www.usenix.org/system/files/conference/fast16/fast16-papers-lu.pdf">WiscKey: Separating Keys from Values in SSD-conscious Storage</a>, USENIX FAST 2016.</div></footer>
+<section><div class="wrap"><div class="label">Speed</div><h2>Throughput &amp; latency</h2>
+<div class="chart" id="tp"></div>
+<h3 style="margin-top:28px">Point gets</h3>
+<p class="note">10,000 random hit gets, warm OS page cache, one VM. Bars run to p99; the dark tick marks the mean.</p>
+<div class="chart" id="lat"></div>
+<h3 style="margin-top:28px">Percentile spectrum</h3>
+<p class="note">Real distribution of the same 10,000 gets. The x-axis stretches the tail (p90 → p99.99), so outliers are visible instead of averaged away.</p>
+<svg id="hdr" viewBox="0 0 980 300" width="100%" role="img" aria-label="Get latency percentile spectrum"></svg>
+<div class="legend"><span><i style="background:var(--contrast)"></i>Baseline</span><span><i style="background:var(--accent)"></i>WiscKey</span></div>
+</div></section>
+
+<section class="sand"><div class="wrap"><div class="label">Raw</div><h2>Full results</h2><table id="tbl"></table><p class="note" id="meta"></p></div></section>
+<footer><div class="wrap">Lu, Pillai, Arpaci-Dusseau &amp; Arpaci-Dusseau, <a href="https://www.usenix.org/system/files/conference/fast16/fast16-papers-lu.pdf">WiscKey: Separating Keys from Values in SSD-conscious Storage</a>, USENIX FAST 2016 · <a href="https://github.com/Deepanshu16125/WiscLite">source</a></div></footer>
 <script>
 const EMBEDDED = {
-  "generated_at_unix": 1792597947,
+  "generated_at_unix": 1792598085,
   "machine": "Intel(R) Xeon(R) Processor",
   "memtable_bytes": 4194304,
   "compaction_fanin": 4,
@@ -58,14 +60,14 @@ const EMBEDDED = {
       "mode": "Baseline",
       "ops": 50000,
       "value_size": 1024,
-      "put_secs": 0.369547155,
-      "puts_per_sec": 135300.73043046426,
-      "mb_per_sec": 141.11866183897425,
-      "get_p50_us": 2.438,
-      "get_p99_us": 8.07,
-      "get_mean_us": 2.6767317000000026,
-      "miss_get_p50_us": 0.204,
-      "scan_us": 3331.8160000000003,
+      "put_secs": 0.423893442,
+      "puts_per_sec": 117954.17207704761,
+      "mb_per_sec": 123.02620147636065,
+      "get_p50_us": 3.051,
+      "get_p99_us": 10.443,
+      "get_mean_us": 3.3835279000000025,
+      "miss_get_p50_us": 0.212,
+      "scan_us": 4384.848,
       "scan_rows": 3266,
       "disk_bytes": 54212637,
       "stats": {
@@ -97,20 +99,114 @@ const EMBEDDED = {
         "bytes_after": 54212529,
         "reclaimed_bytes": 532396
       },
-      "gc_secs": 0.167598381
+      "gc_secs": 0.201592869,
+      "get_spectrum": [
+        [
+          0.0,
+          0.8350000000000001
+        ],
+        [
+          50.0,
+          3.051
+        ],
+        [
+          75.0,
+          3.738
+        ],
+        [
+          90.0,
+          4.655
+        ],
+        [
+          95.0,
+          5.632
+        ],
+        [
+          99.0,
+          10.443
+        ],
+        [
+          99.5,
+          11.770000000000001
+        ],
+        [
+          99.9,
+          20.68
+        ],
+        [
+          99.99,
+          60.795
+        ],
+        [
+          100.0,
+          69.833
+        ]
+      ],
+      "get_histogram": [
+        {
+          "lo_us": 0.0,
+          "hi_us": 0.5,
+          "count": 0
+        },
+        {
+          "lo_us": 0.5,
+          "hi_us": 1.0,
+          "count": 11
+        },
+        {
+          "lo_us": 1.0,
+          "hi_us": 2.0,
+          "count": 619
+        },
+        {
+          "lo_us": 2.0,
+          "hi_us": 4.0,
+          "count": 7492
+        },
+        {
+          "lo_us": 4.0,
+          "hi_us": 8.0,
+          "count": 1678
+        },
+        {
+          "lo_us": 8.0,
+          "hi_us": 16.0,
+          "count": 182
+        },
+        {
+          "lo_us": 16.0,
+          "hi_us": 32.0,
+          "count": 14
+        },
+        {
+          "lo_us": 32.0,
+          "hi_us": 64.0,
+          "count": 3
+        },
+        {
+          "lo_us": 64.0,
+          "hi_us": 128.0,
+          "count": 1
+        },
+        {
+          "lo_us": 128.0,
+          "hi_us": 256.0,
+          "count": 0
+        }
+      ]
     },
     {
       "mode": "WiscKey",
       "ops": 50000,
       "value_size": 1024,
-      "put_secs": 0.192732088,
-      "puts_per_sec": 259427.48049302513,
-      "mb_per_sec": 270.5828621542252,
-      "get_p50_us": 4.532,
-      "get_p99_us": 21.005,
-      "get_mean_us": 5.233195500000007,
-      "miss_get_p50_us": 0.096,
-      "scan_us": 11412.971,
+      "put_secs": 0.183759702,
+      "puts_per_sec": 272094.47694903205,
+      "mb_per_sec": 283.7945394578404,
+      "get_p50_us": 4.7589999999999995,
+      "get_p99_us": 13.321,
+      "get_mean_us": 5.184412500000003,
+      "miss_get_p50_us": 0.077,
+      "scan_us": 9486.241,
       "scan_rows": 3266,
       "disk_bytes": 55012540,
       "stats": {
@@ -142,34 +238,342 @@ const EMBEDDED = {
         "bytes_after": 55012529,
         "reclaimed_bytes": 13753154
       },
-      "gc_secs": 0.233312328
+      "gc_secs": 0.237946098,
+      "get_spectrum": [
+        [
+          0.0,
+          1.423
+        ],
+        [
+          50.0,
+          4.7589999999999995
+        ],
+        [
+          75.0,
+          5.654000000000001
+        ],
+        [
+          90.0,
+          6.956
+        ],
+        [
+          95.0,
+          7.9750000000000005
+        ],
+        [
+          99.0,
+          13.321
+        ],
+        [
+          99.5,
+          16.512999999999998
+        ],
+        [
+          99.9,
+          32.118
+        ],
+        [
+          99.99,
+          79.44200000000001
+        ],
+        [
+          100.0,
+          81.696
+        ]
+      ],
+      "get_histogram": [
+        {
+          "lo_us": 0.0,
+          "hi_us": 0.5,
+          "count": 0
+        },
+        {
+          "lo_us": 0.5,
+          "hi_us": 1.0,
+          "count": 0
+        },
+        {
+          "lo_us": 1.0,
+          "hi_us": 2.0,
+          "count": 30
+        },
+        {
+          "lo_us": 2.0,
+          "hi_us": 4.0,
+          "count": 2083
+        },
+        {
+          "lo_us": 4.0,
+          "hi_us": 8.0,
+          "count": 7398
+        },
+        {
+          "lo_us": 8.0,
+          "hi_us": 16.0,
+          "count": 436
+        },
+        {
+          "lo_us": 16.0,
+          "hi_us": 32.0,
+          "count": 42
+        },
+        {
+          "lo_us": 32.0,
+          "hi_us": 64.0,
+          "count": 9
+        },
+        {
+          "lo_us": 64.0,
+          "hi_us": 128.0,
+          "count": 2
+        },
+        {
+          "lo_us": 128.0,
+          "hi_us": 256.0,
+          "count": 0
+        }
+      ]
+    }
+  ],
+  "sweep": [
+    {
+      "ops": 10000,
+      "mode": "Baseline",
+      "write_amplification": 2.0558569511025886,
+      "tree_amplification": 1.0395578139980826,
+      "physical_bytes": 21442588,
+      "logical_bytes": 10430000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 3,
+      "sstables": 3,
+      "puts_per_sec": 215942.78829042456
+    },
+    {
+      "ops": 10000,
+      "mode": "WiscKey",
+      "write_amplification": 1.097078523489933,
+      "tree_amplification": 0.06543902205177372,
+      "physical_bytes": 11442529,
+      "logical_bytes": 10430000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 1,
+      "sstables": 1,
+      "puts_per_sec": 235379.02578457183
+    },
+    {
+      "ops": 25000,
+      "mode": "Baseline",
+      "write_amplification": 2.7216680728667306,
+      "tree_amplification": 1.7053689357622244,
+      "physical_bytes": 70967495,
+      "logical_bytes": 26075000,
+      "compaction_bytes": 17361040,
+      "compactions": 1,
+      "flushes": 7,
+      "sstables": 4,
+      "puts_per_sec": 146787.12746410523
+    },
+    {
+      "ops": 25000,
+      "mode": "WiscKey",
+      "write_amplification": 1.0970768552253116,
+      "tree_amplification": 0.06543735378715244,
+      "physical_bytes": 28606279,
+      "logical_bytes": 26075000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 1,
+      "sstables": 1,
+      "puts_per_sec": 276600.7922333507
+    },
+    {
+      "ops": 50000,
+      "mode": "Baseline",
+      "write_amplification": 3.05457334611697,
+      "tree_amplification": 2.038274209012464,
+      "physical_bytes": 159296000,
+      "logical_bytes": 52150000,
+      "compaction_bytes": 52083120,
+      "compactions": 3,
+      "flushes": 13,
+      "sstables": 4,
+      "puts_per_sec": 151366.0087519887
+    },
+    {
+      "ops": 50000,
+      "mode": "WiscKey",
+      "write_amplification": 1.0970762991371046,
+      "tree_amplification": 0.06543679769894535,
+      "physical_bytes": 57212529,
+      "logical_bytes": 52150000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 1,
+      "sstables": 1,
+      "puts_per_sec": 275360.4283515635
+    },
+    {
+      "ops": 100000,
+      "mode": "Baseline",
+      "write_amplification": 3.7203839309683606,
+      "tree_amplification": 2.704084793863854,
+      "physical_bytes": 388036044,
+      "logical_bytes": 104300000,
+      "compaction_bytes": 173610313,
+      "compactions": 7,
+      "flushes": 25,
+      "sstables": 4,
+      "puts_per_sec": 123100.7590200764
+    },
+    {
+      "ops": 100000,
+      "mode": "WiscKey",
+      "write_amplification": 1.097076021093001,
+      "tree_amplification": 0.0654365196548418,
+      "physical_bytes": 114425029,
+      "logical_bytes": 104300000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 1,
+      "sstables": 1,
+      "puts_per_sec": 292164.3581816062
+    },
+    {
+      "ops": 200000,
+      "mode": "Baseline",
+      "write_amplification": 4.053289367209971,
+      "tree_amplification": 3.036990230105465,
+      "physical_bytes": 845516162,
+      "logical_bytes": 208600000,
+      "compaction_bytes": 416664699,
+      "compactions": 15,
+      "flushes": 50,
+      "sstables": 5,
+      "puts_per_sec": 102782.46507074239
+    },
+    {
+      "ops": 200000,
+      "mode": "WiscKey",
+      "write_amplification": 1.097076021093001,
+      "tree_amplification": 0.0654365196548418,
+      "physical_bytes": 228850058,
+      "logical_bytes": 208600000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 2,
+      "sstables": 2,
+      "puts_per_sec": 277789.4611395309
+    },
+    {
+      "ops": 350000,
+      "mode": "Baseline",
+      "write_amplification": 4.8074915271880565,
+      "tree_amplification": 3.79119239008355,
+      "physical_bytes": 1754974782,
+      "logical_bytes": 365050000,
+      "compaction_bytes": 1004484708,
+      "compactions": 28,
+      "flushes": 88,
+      "sstables": 4,
+      "puts_per_sec": 82021.35496936817
+    },
+    {
+      "ops": 350000,
+      "mode": "WiscKey",
+      "write_amplification": 1.0970759813724147,
+      "tree_amplification": 0.06543647993425558,
+      "physical_bytes": 400487587,
+      "logical_bytes": 365050000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 3,
+      "sstables": 3,
+      "puts_per_sec": 273331.6386563484
+    },
+    {
+      "ops": 500000,
+      "mode": "Baseline",
+      "write_amplification": 4.552647386385427,
+      "tree_amplification": 3.5363482492809206,
+      "physical_bytes": 2374205612,
+      "logical_bytes": 521500000,
+      "compaction_bytes": 1302076956,
+      "compactions": 39,
+      "flushes": 125,
+      "sstables": 8,
+      "puts_per_sec": 92602.1289999166
+    },
+    {
+      "ops": 500000,
+      "mode": "WiscKey",
+      "write_amplification": 1.1625122627037392,
+      "tree_amplification": 0.13087276126558006,
+      "physical_bytes": 606250145,
+      "logical_bytes": 521500000,
+      "compaction_bytes": 34125029,
+      "compactions": 1,
+      "flushes": 4,
+      "sstables": 1,
+      "puts_per_sec": 240213.83870512326
     }
   ]
 };
-const C={wal:'var(--moss)',vlog:'var(--olive)',sst:'var(--rust)',a:'var(--rust)',b:'var(--olive)'};
+const C={wal:'var(--accent-soft)',vlog:'var(--accent)',sst:'var(--contrast)',cmp:'var(--accent-deep)',base:'var(--contrast)',wisc:'var(--accent)'};
+const col=m=>m==='Baseline'?C.base:C.wisc;
 const f=(x,d=2)=>Number(x).toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d});
-function bars(el,rows,max,fmt){el.innerHTML=rows.map(r=>`<div class="row"><div class="name">${r.name}</div><div class="bar">${r.parts.map(p=>`<i style="width:${100*p.v/max}%;background:${p.c}" title="${p.t||''}"></i>`).join('')}</div><div class="val">${fmt(r)}</div></div>`).join('')}
-function render(B){
-  const by=m=>B.results.find(r=>r.mode===m), b=by('Baseline'), w=by('WiscKey');
-  const L=r=>r.stats.logical_bytes;
-  document.getElementById('sub').textContent=`${b.ops.toLocaleString()} random puts of ${b.value_size} B values in each mode · ${B.machine}`;
-  document.getElementById('kpis').innerHTML=[
-    [f(b.stats.write_amplification/w.stats.write_amplification,2)+'×','less total write amplification'],
-    [f(b.stats.sst_bytes/w.stats.sst_bytes,1)+'×','smaller LSM tree'],
-    [f(w.stats.write_amplification,3),'WiscKey WA (baseline '+f(b.stats.write_amplification,3)+')'],
-    [b.stats.flushes+' → '+w.stats.flushes,'memtable flushes']].map(k=>`<div class="kpi"><b>${k[0]}</b><span>${k[1]}</span></div>`).join('');
-  const wa=[b,w].map(r=>({name:r.mode,parts:[{v:r.stats.wal_bytes/L(r),c:C.wal},{v:r.stats.vlog_bytes/L(r),c:C.vlog},{v:r.stats.sst_bytes/L(r),c:C.sst},{v:(r.stats.compaction_bytes||0)/L(r),c:'var(--olive-d)',t:'compaction'}],r}));
-  bars(document.getElementById('wa'),wa,Math.max(2.4,...wa.map(x=>x.r.stats.write_amplification))*1.05,x=>f(x.r.stats.write_amplification,3)+'×');
-  const ks=[1,5,10],pr=[];ks.forEach(k=>[b,w].forEach(r=>pr.push({name:`${r.mode==='Baseline'?'Base':'Wisc'} k=${k}`,parts:[{v:(r.stats.wal_bytes+r.stats.vlog_bytes+k*r.stats.sst_bytes)/L(r),c:r.mode==='Baseline'?C.a:C.b}]})));
-  const pm=Math.max(...pr.map(p=>p.parts[0].v))*1.05;bars(document.getElementById('proj'),pr,pm,x=>f(x.parts[0].v,2)+'×');
-  const tm=Math.max(b.puts_per_sec,w.puts_per_sec)*1.1;
-  bars(document.getElementById('tp'),[b,w].map(r=>({name:r.mode+' put',parts:[{v:r.puts_per_sec,c:r.mode==='Baseline'?C.a:C.b}],r})),tm,x=>f(x.r.puts_per_sec/1000,0)+'k ops/s');
-  const lm=Math.max(b.get_p99_us,w.get_p99_us)*1.1,lr=[];[b,w].forEach(r=>{lr.push({name:r.mode+' p50',parts:[{v:r.get_p50_us,c:r.mode==='Baseline'?C.a:C.b}],x:r.get_p50_us});lr.push({name:r.mode+' p99',parts:[{v:r.get_p99_us,c:r.mode==='Baseline'?C.a:C.b}],x:r.get_p99_us})});
-  bars(document.getElementById('lat'),lr,lm,x=>f(x.x,1)+' µs get');
-  const keys=[['ops','ops',0],['logical MB',r=>L(r)/1e6,1],['WAL MB',r=>r.stats.wal_bytes/1e6,1],['vlog MB',r=>r.stats.vlog_bytes/1e6,1],['sstable MB',r=>r.stats.sst_bytes/1e6,2],['physical MB',r=>r.stats.physical_bytes/1e6,1],['write amp.',r=>r.stats.write_amplification,3],['tree amp.',r=>r.stats.tree_amplification,3],['puts/s','puts_per_sec',0],['MB/s','mb_per_sec',1],['get p50 µs','get_p50_us',1],['get p99 µs','get_p99_us',1],['flushes',r=>r.stats.flushes,0],['compactions',r=>r.stats.compactions||0,0],['compaction MB',r=>(r.stats.compaction_bytes||0)/1e6,1],['Bloom FPR',r=>r.stats.bloom_fpr||0,4],['GC reclaimed MB',r=>r.gc?r.gc.reclaimed_bytes/1e6:0,1]];
-  const g=(r,k)=>typeof k==='function'?k(r):r[k];
-  document.getElementById('tbl').innerHTML='<tr><th>Metric</th><th>Baseline</th><th>WiscKey</th></tr>'+keys.map(([n,k,d])=>`<tr><td>${n}</td><td>${f(g(b,k),d)}</td><td>${f(g(w,k),d)}</td></tr>`).join('');
-  document.getElementById('meta').textContent=`Memtable ${B.memtable_bytes/1048576} MiB · generated ${new Date(B.generated_at_unix*1000).toLocaleString()} · no per-write fsync; gets served from OS page cache.`;
+const $=id=>document.getElementById(id);
+function bars(el,rows,max,fmt,ticks=[]){el.innerHTML=rows.map(r=>`<div class="row"><div class="name">${r.name}</div><div class="bar">${r.parts.map(p=>`<i style="width:${100*p.v/max}%;background:${p.c}" title="${p.t||''}"></i>`).join('')}${ticks.map(t=>`<b class="tick" style="left:${100*t.v/max}%">${t.l?`<span>${t.l}</span>`:''}</b>`).join('')}${r.mean!=null?`<b class="mean" style="left:${100*r.mean/max}%" title="mean"></b>`:''}</div><div class="val">${fmt(r)}</div></div>`).join('')}
+function lineChart(svg,series,{xs,xl,yl,xfmt,yfmt,ymax,mark}){
+  const W=980,H=300,L=56,R=20,T=16,B=40,x0=Math.min(...xs),x1=Math.max(...xs);
+  const X=v=>L+(W-L-R)*(v-x0)/(x1-x0||1),Y=v=>H-B-(H-T-B)*v/ymax;
+  let g='';for(let i=0;i<=4;i++){const v=ymax*i/4;g+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--rule)"/><text x="${L-8}" y="${Y(v)+4}" text-anchor="end">${yfmt(v)}</text>`}
+  xs.forEach(v=>g+=`<text x="${X(v)}" y="${H-B+18}" text-anchor="middle">${xfmt(v)}</text>`);
+  g+=`<text x="${W-R}" y="${H-6}" text-anchor="end">${xl}</text><text x="${L}" y="${T-4}">${yl}</text>`;
+  if(mark!=null)g+=`<line x1="${X(mark)}" x2="${X(mark)}" y1="${T}" y2="${H-B}" stroke="var(--text)" stroke-dasharray="3 4" opacity=".5"/>`;
+  series.forEach(s=>{g+=`<polyline fill="none" stroke="${s.c}" stroke-width="2.5" points="${s.pts.map(p=>X(p[0])+','+Y(p[1])).join(' ')}"/>`+s.pts.map(p=>`<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="${p[0]===mark?5:3}" fill="${s.c}"/>`).join('')});
+  svg.innerHTML=g;
 }
-fetch('bench.json').then(r=>r.json()).then(render).catch(()=>{if(EMBEDDED)render(EMBEDDED);else document.getElementById('sub').textContent='Run `wisclite bench` and serve this folder (python -m http.server) to load bench.json.'});
+function render(B){
+  const by=m=>B.results.find(r=>r.mode===m), b=by('Baseline'), w=by('WiscKey'), L=r=>r.stats.logical_bytes;
+  $('sub').textContent=`${b.ops.toLocaleString()} random puts of ${b.value_size} B values in each mode, with size-tiered compaction · ${B.machine}`;
+  $('kpis').innerHTML=[
+    [f(b.stats.write_amplification/w.stats.write_amplification,2)+'×','less write amplification (compaction included)'],
+    [f(b.stats.sstable_disk_bytes/w.stats.sstable_disk_bytes,1)+'×','smaller LSM tree on disk'],
+    [b.stats.compactions+' → '+w.stats.compactions,'compactions'],
+    [f(w.stats.bloom_fpr*100,2)+'%','measured Bloom false-positive rate']].map(k=>`<div class="kpi"><b>${k[0]}</b><span>${k[1]}</span></div>`).join('');
+  const wa=[b,w].map(r=>({name:r.mode,r,parts:[{v:r.stats.wal_bytes/L(r),c:C.wal,t:'WAL'},{v:r.stats.vlog_bytes/L(r),c:C.vlog,t:'vlog'},{v:r.stats.sst_bytes/L(r),c:C.sst,t:'flush'},{v:r.stats.compaction_bytes/L(r),c:C.cmp,t:'compaction'}]}));
+  const wmax=Math.max(...wa.map(x=>x.r.stats.write_amplification))*1.08;
+  bars($('wa'),wa,wmax,x=>f(x.r.stats.write_amplification,3)+'×',[{v:1,l:'1.0× data'}]);
+  // area-proportional trees
+  const tb=b.stats.sstable_disk_bytes,tw=w.stats.sstable_disk_bytes,side=v=>260*Math.sqrt(v/Math.max(tb,tw));
+  $('trees').innerHTML=[[b,tb],[w,tw]].map(([r,v])=>`<figure><svg width="${side(v)+2}" height="${side(v)+2}"><rect x="1" y="1" width="${side(v)}" height="${side(v)}" fill="${col(r.mode)}" opacity=".9"/></svg><figcaption><b>${f(v/1e6,1)} MB</b>${r.mode} · ${r.stats.sstables} table${r.stats.sstables>1?'s':''} · ${f(r.stats.compaction_bytes/1e6,1)} MB rewritten by compaction</figcaption></figure>`).join('');
+  // measured sweep
+  const S=B.sweep||[], ns=[...new Set(S.map(p=>p.ops))].sort((a,c)=>a-c);
+  if(ns.length){
+    const sl=$('sweep');sl.max=ns.length-1;sl.value=ns.indexOf(b.ops)>=0?ns.indexOf(b.ops):ns.length-1;
+    const pt=(n,m)=>S.find(p=>p.ops===n&&p.mode===m), ymax=Math.ceil(Math.max(...S.map(p=>p.write_amplification))+0.5);
+    const draw=()=>{const n=ns[sl.value],pb=pt(n,'Baseline'),pw=pt(n,'WiscKey');
+      $('sweepN').textContent=n.toLocaleString()+' puts';
+      $('sweepInfo').textContent=`${f(pb.logical_bytes/1e6,0)} MB logical · baseline ${pb.compactions} compactions (${f(pb.compaction_bytes/1e6,0)} MB rewritten) · WiscKey ${pw.compactions} (${f(pw.compaction_bytes/1e6,1)} MB)`;
+      bars($('sweepBars'),[pb,pw].map(p=>({name:p.mode,p,parts:[{v:p.write_amplification,c:col(p.mode)}]})),ymax,x=>f(x.p.write_amplification,2)+'× WA',[{v:1,l:'1.0×'}]);
+      lineChart($('sweepChart'),['Baseline','WiscKey'].map(m=>({c:col(m),pts:ns.map(k=>[k,pt(k,m).write_amplification])})),{xs:ns,xl:'puts (1 KB values)',yl:'write amplification',xfmt:v=>v>=1000?(v/1000)+'k':v,yfmt:v=>f(v,1)+'×',ymax,mark:n});};
+    sl.oninput=draw;draw();
+  }
+  const tm=Math.max(b.puts_per_sec,w.puts_per_sec)*1.1;
+  bars($('tp'),[b,w].map(r=>({name:r.mode+' put',r,parts:[{v:r.puts_per_sec,c:col(r.mode)}]})),tm,x=>f(x.r.puts_per_sec/1000,0)+'k ops/s');
+  const lm=Math.max(b.get_p99_us,w.get_p99_us)*1.1;
+  bars($('lat'),[b,w].flatMap(r=>[{name:r.mode+' p50',x:r.get_p50_us,parts:[{v:r.get_p50_us,c:col(r.mode)}]},{name:r.mode+' p99',x:r.get_p99_us,mean:r.get_mean_us,parts:[{v:r.get_p99_us,c:col(r.mode)}]}]),lm,x=>f(x.x,1)+' µs'+(x.mean!=null?` · mean ${f(x.mean,1)}`:''));
+  if(b.get_spectrum){
+    const tx=p=>-Math.log10(Math.max(1-p/100,1e-4)), ps=b.get_spectrum.map(s=>s[0]).filter(p=>p<100);
+    const ymax=Math.max(...[b,w].flatMap(r=>r.get_spectrum.filter(s=>s[0]<100).map(s=>s[1])))*1.1;
+    lineChart($('hdr'),[b,w].map(r=>({c:col(r.mode),pts:r.get_spectrum.filter(s=>s[0]<100).map(s=>[tx(s[0]),s[1]])})),{xs:ps.map(tx),xl:'percentile',yl:'get latency (µs)',xfmt:v=>{const p=100*(1-Math.pow(10,-v));return p<1?'p0':'p'+(+p.toFixed(2))},yfmt:v=>f(v,0),ymax});
+  }
+  const keys=[['ops','ops',0],['logical MB',r=>L(r)/1e6,1],['WAL MB',r=>r.stats.wal_bytes/1e6,1],['vlog MB',r=>r.stats.vlog_bytes/1e6,1],['flush MB',r=>r.stats.sst_bytes/1e6,2],['compaction MB',r=>r.stats.compaction_bytes/1e6,1],['physical MB',r=>r.stats.physical_bytes/1e6,1],['write amp.',r=>r.stats.write_amplification,3],['tree amp.',r=>r.stats.tree_amplification,3],['flushes',r=>r.stats.flushes,0],['compactions',r=>r.stats.compactions,0],['tables left',r=>r.stats.sstables,0],['puts/s','puts_per_sec',0],['get p50 µs','get_p50_us',1],['get p99 µs','get_p99_us',1],['miss p50 µs','miss_get_p50_us',2],['Bloom FPR',r=>r.stats.bloom_fpr,4],['scan rows',r=>r.scan_rows,0],['scan ms',r=>r.scan_us/1e3,1],['GC reclaimed MB',r=>r.gc.reclaimed_bytes/1e6,1]];
+  const g=(r,k)=>typeof k==='function'?k(r):r[k];
+  $('tbl').innerHTML='<tr><th>Metric</th><th>Baseline</th><th>WiscKey</th></tr>'+keys.map(([n,k,d])=>`<tr><td>${n}</td><td>${f(g(b,k),d)}</td><td>${f(g(w,k),d)}</td></tr>`).join('');
+  $('meta').textContent=`Memtable ${B.memtable_bytes/1048576} MiB · fan-in ${B.compaction_fanin} · generated ${new Date(B.generated_at_unix*1000).toLocaleString()} · no per-write fsync; gets served from the OS page cache. GC row: after overwriting 25% of keys.`;
+}
+fetch('bench.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(render).catch(()=>{if(EMBEDDED)render(EMBEDDED);else $('sub').textContent='Run `wisclite bench`, then serve this folder to load bench.json.'});
 </script></body></html>
