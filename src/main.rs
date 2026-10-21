@@ -27,7 +27,9 @@ struct BenchMode {
     get_p99_us: f64,
     get_mean_us: f64,
     miss_get_p50_us: f64,
-    scan_100_us: f64,
+    /// Range scan of ["key8", "key9"): ~1/16 of keys, values resolved.
+    scan_us: f64,
+    scan_rows: usize,
     disk_bytes: u64,
     stats: Stats,
     /// After overwriting 25% of keys, run GC.
@@ -72,8 +74,7 @@ fn bench_one(mode: Mode, n: usize, vs: usize, gets: usize, mem: usize, fanin: us
         miss.push(t.elapsed().as_secs_f64() * 1e6);
     }
     let t = Instant::now();
-    let rows = db.scan(b"key8", None)?;
-    let _ = rows.iter().take(100).count();
+    let scan_rows = db.scan(b"key8", Some(b"key9"))?.len();
     let scan_us = t.elapsed().as_secs_f64() * 1e6;
     let lat = sorted(lat);
     let miss = sorted(miss);
@@ -98,7 +99,7 @@ fn bench_one(mode: Mode, n: usize, vs: usize, gets: usize, mem: usize, fanin: us
         get_p50_us: pct(&lat, 0.5), get_p99_us: pct(&lat, 0.99),
         get_mean_us: lat.iter().sum::<f64>() / lat.len() as f64,
         miss_get_p50_us: pct(&miss, 0.5),
-        scan_100_us: scan_us,
+        scan_us, scan_rows,
         disk_bytes, stats, gc, gc_secs,
     })
 }
@@ -158,11 +159,11 @@ fn main() -> std::io::Result<()> {
             for m in [Mode::Baseline, Mode::WiscKey] {
                 let r = bench_one(m, n, vs, gets, mem, fanin)?;
                 let s = &r.stats;
-                println!("{:<9} puts/s {:>7.0} {:>6.1} MB/s  WA {:.3} (wal {:.2} vlog {:.2} flush {:.2} compact {:.2})  compactions {}  get p50 {:.1}us p99 {:.1}us  miss p50 {:.1}us  bloom FPR {:.4}  gc reclaimed {:.1} MB",
+                println!("{:<9} puts/s {:>7.0} {:>6.1} MB/s  WA {:.3} (wal {:.2} vlog {:.2} flush {:.2} compact {:.2})  compactions {}  get p50 {:.1}us p99 {:.1}us  miss p50 {:.1}us  bloom FPR {:.4}  scan {} rows {:.1}ms  gc reclaimed {:.1} MB",
                     m.as_str(), r.puts_per_sec, r.mb_per_sec, s.write_amplification,
                     s.wal_bytes as f64 / s.logical_bytes as f64, s.vlog_bytes as f64 / s.logical_bytes as f64,
                     s.sst_bytes as f64 / s.logical_bytes as f64, s.compaction_bytes as f64 / s.logical_bytes as f64,
-                    s.compactions, r.get_p50_us, r.get_p99_us, r.miss_get_p50_us, s.bloom_fpr, r.gc.reclaimed_bytes as f64 / 1e6);
+                    s.compactions, r.get_p50_us, r.get_p99_us, r.miss_get_p50_us, s.bloom_fpr, r.scan_rows, r.scan_us / 1e3, r.gc.reclaimed_bytes as f64 / 1e6);
                 results.push(r);
             }
             let machine = std::fs::read_to_string("/proc/cpuinfo").ok()

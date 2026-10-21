@@ -7,7 +7,7 @@
 5. **Objectives:** (a) a correct, crash-safe engine, (b) key-value separation, (c) a measurable comparison with a baseline, (d) a visual dashboard.
 6. **System design:** the architecture diagram (README), on-disk formats for the WAL, vlog and sstable, the read and write paths, and the recovery algorithm.
 7. **Implementation:** Rust 2024, crates `crc32fast`, `serde_json` and `rand`, a module-by-module walk-through, and the CLI.
-8. **Testing:** 13 unit and integration tests covering recovery, torn and corrupt logs, tombstones, ordering and flush.
+8. **Testing:** 22 unit, engine and HTTP tests covering recovery, torn and corrupt logs, tombstones, ordering, compaction, Bloom filters, scans and GC.
 9. **Results:** the bench table, write-amplification chart, compaction projection, throughput and latency.
 10. **Limitations and future work:** compaction, vlog GC, Bloom filters, range scans, concurrency.
 11. **Conclusion.**

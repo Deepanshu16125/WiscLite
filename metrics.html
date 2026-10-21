@@ -37,10 +37,10 @@ footer{padding:36px 0;color:var(--muted);font-size:14px}
 <section><div class="wrap"><div class="label">Write amplification</div><h2>Where the bytes go</h2>
 <p class="note">Physical bytes written per logical byte, split by file. The baseline writes every value twice (WAL, then sstable); WiscKey writes it once, to the value log.</p>
 <div class="chart" id="wa"></div>
-<div class="legend"><span><i style="background:var(--moss)"></i>WAL</span><span><i style="background:var(--olive)"></i>Value log</span><span><i style="background:var(--rust)"></i>SSTables (LSM tree)</span></div></div></section>
+<div class="legend"><span><i style="background:var(--moss)"></i>WAL</span><span><i style="background:var(--olive)"></i>Value log</span><span><i style="background:var(--rust)"></i>SSTable flushes</span><span><i style="background:var(--olive-d)"></i>Compaction</span></div></div></section>
 
 <section class="sand"><div class="wrap"><div class="label">Projection</div><h2>Add compaction, and it diverges</h2>
-<p class="note">WiscLite skips compaction. A leveled LSM rewrites tree data roughly <i>k</i> times (the paper cites up to ~10× per level). Modelled WA = WAL + vlog + k × sstable bytes, using the measured bytes above.</p>
+<p class="note">The bar above includes measured size-tiered compaction. Deeper trees rewrite tree data more often; this models WA = WAL + vlog + k × flushed sstable bytes for larger <i>k</i>.</p>
 <div class="chart" id="proj"></div></div></section>
 
 <section class="surface"><div class="wrap"><div class="label">Speed</div><h2>Throughput &amp; latency</h2><div class="chart" id="tp"></div><div class="chart" id="lat"></div></div></section>
@@ -49,57 +49,100 @@ footer{padding:36px 0;color:var(--muted);font-size:14px}
 <footer><div class="wrap">Lu, Pillai, Arpaci-Dusseau &amp; Arpaci-Dusseau, <a href="https://www.usenix.org/system/files/conference/fast16/fast16-papers-lu.pdf">WiscKey: Separating Keys from Values in SSD-conscious Storage</a>, USENIX FAST 2016.</div></footer>
 <script>
 const EMBEDDED = {
-  "generated_at_unix": 1792594535,
+  "generated_at_unix": 1792597947,
   "machine": "Intel(R) Xeon(R) Processor",
   "memtable_bytes": 4194304,
+  "compaction_fanin": 4,
   "results": [
     {
       "mode": "Baseline",
       "ops": 50000,
       "value_size": 1024,
-      "put_secs": 0.218130584,
-      "puts_per_sec": 229220.49298689817,
-      "mb_per_sec": 239.0769741853348,
-      "get_p50_us": 2.929,
-      "get_p99_us": 11.164,
-      "get_mean_us": 3.5205264999999972,
-      "disk_bytes": 54150268,
+      "put_secs": 0.369547155,
+      "puts_per_sec": 135300.73043046426,
+      "mb_per_sec": 141.11866183897425,
+      "get_p50_us": 2.438,
+      "get_p99_us": 8.07,
+      "get_mean_us": 2.6767317000000026,
+      "miss_get_p50_us": 0.204,
+      "scan_us": 3331.8160000000003,
+      "scan_rows": 3266,
+      "disk_bytes": 54212637,
       "stats": {
         "logical_bytes": 52150000,
         "wal_bytes": 53000000,
         "vlog_bytes": 0,
-        "sst_bytes": 54150260,
-        "physical_bytes": 107150260,
-        "write_amplification": 2.054655033557047,
-        "tree_amplification": 1.0383558964525408,
+        "sst_bytes": 54212880,
+        "compaction_bytes": 52083120,
+        "gc_bytes": 0,
+        "physical_bytes": 159296000,
+        "write_amplification": 3.05457334611697,
+        "tree_amplification": 2.038274209012464,
         "flushes": 13,
-        "sstables": 13,
+        "compactions": 3,
+        "tombstones_dropped": 0,
+        "gc_runs": 0,
+        "gc_reclaimed_bytes": 0,
+        "bloom_negatives": 58772,
+        "bloom_false_positives": 487,
+        "bloom_fpr": 0.008218160954454176,
+        "sstables": 4,
+        "sstable_disk_bytes": 54212616,
+        "vlog_disk_bytes": 0,
         "memtable_entries": 0
-      }
+      },
+      "gc": {
+        "live_keys": 50000,
+        "bytes_before": 54744925,
+        "bytes_after": 54212529,
+        "reclaimed_bytes": 532396
+      },
+      "gc_secs": 0.167598381
     },
     {
       "mode": "WiscKey",
       "ops": 50000,
       "value_size": 1024,
-      "put_secs": 0.157450518,
-      "puts_per_sec": 317560.0857661198,
-      "mb_per_sec": 331.215169454063,
-      "get_p50_us": 2.674,
-      "get_p99_us": 5.891,
-      "get_mean_us": 2.788056900000003,
-      "disk_bytes": 54950027,
+      "put_secs": 0.192732088,
+      "puts_per_sec": 259427.48049302513,
+      "mb_per_sec": 270.5828621542252,
+      "get_p50_us": 4.532,
+      "get_p99_us": 21.005,
+      "get_mean_us": 5.233195500000007,
+      "miss_get_p50_us": 0.096,
+      "scan_us": 11412.971,
+      "scan_rows": 3266,
+      "disk_bytes": 55012540,
       "stats": {
         "logical_bytes": 52150000,
         "wal_bytes": 2200000,
         "vlog_bytes": 51600000,
-        "sst_bytes": 3350020,
-        "physical_bytes": 57150020,
-        "write_amplification": 1.0958776605944391,
-        "tree_amplification": 0.06423815915627996,
+        "sst_bytes": 3412529,
+        "compaction_bytes": 0,
+        "gc_bytes": 0,
+        "physical_bytes": 57212529,
+        "write_amplification": 1.0970762991371046,
+        "tree_amplification": 0.06543679769894535,
         "flushes": 1,
+        "compactions": 0,
+        "tombstones_dropped": 0,
+        "gc_runs": 0,
+        "gc_reclaimed_bytes": 0,
+        "bloom_negatives": 9933,
+        "bloom_false_positives": 67,
+        "bloom_fpr": 0.0067,
         "sstables": 1,
+        "sstable_disk_bytes": 3412529,
+        "vlog_disk_bytes": 51600000,
         "memtable_entries": 0
-      }
+      },
+      "gc": {
+        "live_keys": 50000,
+        "bytes_before": 68765683,
+        "bytes_after": 55012529,
+        "reclaimed_bytes": 13753154
+      },
+      "gc_secs": 0.233312328
     }
   ]
 };
@@ -115,15 +158,15 @@ function render(B){
     [f(b.stats.sst_bytes/w.stats.sst_bytes,1)+'×','smaller LSM tree'],
     [f(w.stats.write_amplification,3),'WiscKey WA (baseline '+f(b.stats.write_amplification,3)+')'],
     [b.stats.flushes+' → '+w.stats.flushes,'memtable flushes']].map(k=>`<div class="kpi"><b>${k[0]}</b><span>${k[1]}</span></div>`).join('');
-  const wa=[b,w].map(r=>({name:r.mode,parts:[{v:r.stats.wal_bytes/L(r),c:C.wal},{v:r.stats.vlog_bytes/L(r),c:C.vlog},{v:r.stats.sst_bytes/L(r),c:C.sst}],r}));
-  bars(document.getElementById('wa'),wa,2.4,x=>f(x.r.stats.write_amplification,3)+'×');
+  const wa=[b,w].map(r=>({name:r.mode,parts:[{v:r.stats.wal_bytes/L(r),c:C.wal},{v:r.stats.vlog_bytes/L(r),c:C.vlog},{v:r.stats.sst_bytes/L(r),c:C.sst},{v:(r.stats.compaction_bytes||0)/L(r),c:'var(--olive-d)',t:'compaction'}],r}));
+  bars(document.getElementById('wa'),wa,Math.max(2.4,...wa.map(x=>x.r.stats.write_amplification))*1.05,x=>f(x.r.stats.write_amplification,3)+'×');
   const ks=[1,5,10],pr=[];ks.forEach(k=>[b,w].forEach(r=>pr.push({name:`${r.mode==='Baseline'?'Base':'Wisc'} k=${k}`,parts:[{v:(r.stats.wal_bytes+r.stats.vlog_bytes+k*r.stats.sst_bytes)/L(r),c:r.mode==='Baseline'?C.a:C.b}]})));
   const pm=Math.max(...pr.map(p=>p.parts[0].v))*1.05;bars(document.getElementById('proj'),pr,pm,x=>f(x.parts[0].v,2)+'×');
   const tm=Math.max(b.puts_per_sec,w.puts_per_sec)*1.1;
   bars(document.getElementById('tp'),[b,w].map(r=>({name:r.mode+' put',parts:[{v:r.puts_per_sec,c:r.mode==='Baseline'?C.a:C.b}],r})),tm,x=>f(x.r.puts_per_sec/1000,0)+'k ops/s');
   const lm=Math.max(b.get_p99_us,w.get_p99_us)*1.1,lr=[];[b,w].forEach(r=>{lr.push({name:r.mode+' p50',parts:[{v:r.get_p50_us,c:r.mode==='Baseline'?C.a:C.b}],x:r.get_p50_us});lr.push({name:r.mode+' p99',parts:[{v:r.get_p99_us,c:r.mode==='Baseline'?C.a:C.b}],x:r.get_p99_us})});
   bars(document.getElementById('lat'),lr,lm,x=>f(x.x,1)+' µs get');
-  const keys=[['ops','ops',0],['logical MB',r=>L(r)/1e6,1],['WAL MB',r=>r.stats.wal_bytes/1e6,1],['vlog MB',r=>r.stats.vlog_bytes/1e6,1],['sstable MB',r=>r.stats.sst_bytes/1e6,2],['physical MB',r=>r.stats.physical_bytes/1e6,1],['write amp.',r=>r.stats.write_amplification,3],['tree amp.',r=>r.stats.tree_amplification,3],['puts/s','puts_per_sec',0],['MB/s','mb_per_sec',1],['get p50 µs','get_p50_us',1],['get p99 µs','get_p99_us',1],['flushes',r=>r.stats.flushes,0]];
+  const keys=[['ops','ops',0],['logical MB',r=>L(r)/1e6,1],['WAL MB',r=>r.stats.wal_bytes/1e6,1],['vlog MB',r=>r.stats.vlog_bytes/1e6,1],['sstable MB',r=>r.stats.sst_bytes/1e6,2],['physical MB',r=>r.stats.physical_bytes/1e6,1],['write amp.',r=>r.stats.write_amplification,3],['tree amp.',r=>r.stats.tree_amplification,3],['puts/s','puts_per_sec',0],['MB/s','mb_per_sec',1],['get p50 µs','get_p50_us',1],['get p99 µs','get_p99_us',1],['flushes',r=>r.stats.flushes,0],['compactions',r=>r.stats.compactions||0,0],['compaction MB',r=>(r.stats.compaction_bytes||0)/1e6,1],['Bloom FPR',r=>r.stats.bloom_fpr||0,4],['GC reclaimed MB',r=>r.gc?r.gc.reclaimed_bytes/1e6:0,1]];
   const g=(r,k)=>typeof k==='function'?k(r):r[k];
   document.getElementById('tbl').innerHTML='<tr><th>Metric</th><th>Baseline</th><th>WiscKey</th></tr>'+keys.map(([n,k,d])=>`<tr><td>${n}</td><td>${f(g(b,k),d)}</td><td>${f(g(w,k),d)}</td></tr>`).join('');
   document.getElementById('meta').textContent=`Memtable ${B.memtable_bytes/1048576} MiB · generated ${new Date(B.generated_at_unix*1000).toLocaleString()} · no per-write fsync; gets served from OS page cache.`;
