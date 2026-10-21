@@ -9,7 +9,7 @@ fn tmp(name: &str) -> std::path::PathBuf {
     let _ = std::fs::remove_dir_all(&d);
     d
 }
-fn opts(mode: Mode, mem: usize) -> Options { Options { mode, memtable_bytes: mem, sync_writes: false } }
+fn opts(mode: Mode, mem: usize) -> Options { Options { mode, memtable_bytes: mem, sync_writes: false, ..Default::default() } }
 
 #[test]
 fn put_get_both_modes() {
@@ -178,4 +178,120 @@ fn bloom_filters_skip_tables_and_report_fpr() {
     assert!(s.bloom_negatives > 0);
     assert!(s.bloom_fpr < 0.05, "fpr {}", s.bloom_fpr);
     assert_eq!(db.get(b"key1234").unwrap(), Some(b"v".to_vec()));
+}
+
+fn small(m: Mode) -> Options { Options { mode: m, memtable_bytes: 4 << 10, sync_writes: false, compaction_fanin: 4 } }
+
+#[test]
+fn compaction_merges_tables_and_keeps_data() {
+    for m in [Mode::WiscKey, Mode::Baseline] {
+        let d = tmp(&format!("cmp{m:?}"));
+        let mut db = Db::open(&d, small(m)).unwrap();
+        for i in 0..3000u32 { db.put(format!("k{i:05}").as_bytes(), format!("v{i}").as_bytes()).unwrap(); }
+        for i in 0..1500u32 { db.put(format!("k{i:05}").as_bytes(), format!("new{i}").as_bytes()).unwrap(); }
+        db.flush().unwrap();
+        let s = db.stats();
+        assert!(s.compactions > 0, "{m:?}: expected compactions");
+        assert!(s.compaction_bytes > 0);
+        assert!(s.sstables < s.flushes as usize, "tables should be merged");
+        assert!(s.physical_bytes >= s.wal_bytes + s.sst_bytes + s.compaction_bytes);
+        drop(db);
+        let mut db = Db::open(&d, small(m)).unwrap();
+        for i in (0..3000u32).step_by(7) {
+            let want = if i < 1500 { format!("new{i}") } else { format!("v{i}") };
+            assert_eq!(db.get(format!("k{i:05}").as_bytes()).unwrap(), Some(want.into_bytes()));
+        }
+    }
+}
+
+#[test]
+fn full_compaction_drops_tombstones() {
+    let d = tmp("tomb-drop");
+    let mut db = Db::open(&d, opts(Mode::WiscKey, 1 << 20)).unwrap();
+    for i in 0..100u32 { db.put(format!("k{i}").as_bytes(), b"x").unwrap(); }
+    db.flush().unwrap();
+    for i in 0..50u32 { db.delete(format!("k{i}").as_bytes()).unwrap(); }
+    db.flush().unwrap();
+    db.compact_all().unwrap();
+    let s = db.stats();
+    assert_eq!(s.sstables, 1);
+    assert_eq!(s.tombstones_dropped, 50);
+    assert_eq!(db.get(b"k10").unwrap(), None);
+    assert_eq!(db.get(b"k60").unwrap(), Some(b"x".to_vec()));
+    assert_eq!(db.scan(b"", None).unwrap().len(), 50);
+}
+
+#[test]
+fn partial_compaction_keeps_tombstones_that_shadow_older_tables() {
+    let d = tmp("tomb-keep");
+    // fanin 2 so the two newest tables merge while an older one remains
+    let o = Options { mode: Mode::Baseline, memtable_bytes: 1 << 20, sync_writes: false, compaction_fanin: 0 };
+    let mut db = Db::open(&d, o.clone()).unwrap();
+    db.put(b"a", b"old").unwrap();
+    db.flush().unwrap();
+    for i in 0..200u32 { db.put(format!("pad{i}").as_bytes(), &[0u8; 100]).unwrap(); }
+    db.flush().unwrap();
+    db.delete(b"a").unwrap();
+    db.flush().unwrap();
+    drop(db);
+    let mut db = Db::open(&d, Options { compaction_fanin: 2, ..o }).unwrap();
+    db.put(b"z", b"1").unwrap();
+    db.flush().unwrap(); // triggers merges of same-tier newest tables
+    assert_eq!(db.get(b"a").unwrap(), None, "tombstone must still hide the old value");
+}
+
+#[test]
+fn scan_is_ordered_merges_layers_and_skips_tombstones() {
+    for m in [Mode::WiscKey, Mode::Baseline] {
+        let d = tmp(&format!("scan{m:?}"));
+        let mut db = Db::open(&d, opts(m, 1 << 20)).unwrap();
+        for k in ["b", "d", "f", "h"] { db.put(k.as_bytes(), b"t1").unwrap(); }
+        db.flush().unwrap();
+        db.put(b"d", b"t2").unwrap();
+        db.put(b"e", b"t2").unwrap();
+        db.flush().unwrap();
+        db.delete(b"f").unwrap(); // memtable tombstone
+        db.put(b"c", b"mem").unwrap();
+        let got = db.scan(b"c", Some(b"h")).unwrap();
+        let want: Vec<(Vec<u8>, Vec<u8>)> = [("c", "mem"), ("d", "t2"), ("e", "t2")]
+            .iter().map(|(k, v)| (k.as_bytes().to_vec(), v.as_bytes().to_vec())).collect();
+        assert_eq!(got, want);
+        assert_eq!(db.scan(b"", None).unwrap().len(), 5); // b c d e h
+        assert!(db.scan(b"x", None).unwrap().is_empty());
+    }
+}
+
+#[test]
+fn gc_reclaims_dead_values_and_survives_reopen() {
+    let d = tmp("gc");
+    let mut db = Db::open(&d, opts(Mode::WiscKey, 64 << 10)).unwrap();
+    let v = vec![9u8; 1024];
+    for round in 0..4u8 {
+        for i in 0..500u32 { let mut x = v.clone(); x[0] = round; db.put(format!("k{i}").as_bytes(), &x).unwrap(); }
+    }
+    for i in 0..100u32 { db.delete(format!("k{i}").as_bytes()).unwrap(); }
+    let r = db.gc().unwrap();
+    assert_eq!(r.live_keys, 400);
+    // 2000 values written, 400 live -> at least ~75% of the vlog reclaimed
+    assert!(r.reclaimed_bytes > 1_500_000, "reclaimed {}", r.reclaimed_bytes);
+    assert_eq!(db.get(b"k250").unwrap().unwrap()[0], 3);
+    db.put(b"after", b"gc").unwrap();
+    drop(db);
+    let mut db = Db::open(&d, opts(Mode::WiscKey, 64 << 10)).unwrap();
+    assert_eq!(db.get(b"k499").unwrap().unwrap()[0], 3);
+    assert_eq!(db.get(b"k5").unwrap(), None);
+    assert_eq!(db.get(b"after").unwrap(), Some(b"gc".to_vec()));
+    assert!(!d.join("vlog").exists(), "old vlog generation should be deleted");
+    assert_eq!(db.scan(b"", None).unwrap().len(), 401);
+}
+
+#[test]
+fn unlisted_files_are_cleaned_on_open() {
+    let d = tmp("orphan");
+    { let mut db = Db::open(&d, opts(Mode::WiscKey, 1 << 20)).unwrap(); db.put(b"a", b"1").unwrap(); db.flush().unwrap(); }
+    std::fs::write(d.join("999999.sst"), b"half-written garbage").unwrap();
+    std::fs::write(d.join("vlog.7"), b"orphan").unwrap();
+    let mut db = Db::open(&d, opts(Mode::WiscKey, 1 << 20)).unwrap();
+    assert!(!d.join("999999.sst").exists() && !d.join("vlog.7").exists());
+    assert_eq!(db.get(b"a").unwrap(), Some(b"1".to_vec()));
 }

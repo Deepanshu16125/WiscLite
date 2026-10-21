@@ -22,6 +22,11 @@ impl MemTable {
     pub fn len(&self) -> usize { self.map.len() }
     pub fn is_empty(&self) -> bool { self.map.is_empty() }
     pub fn iter(&self) -> impl Iterator<Item = (&Vec<u8>, &Entry)> { self.map.iter() }
+    pub fn range(&self, start: &[u8], end: Option<&[u8]>) -> impl Iterator<Item = (&Vec<u8>, &Entry)> {
+        use std::ops::Bound;
+        let hi = end.map_or(Bound::Unbounded, |e| Bound::Excluded(e.to_vec()));
+        self.map.range((Bound::Included(start.to_vec()), hi))
+    }
     pub fn clear(&mut self) { self.map.clear(); self.approx_bytes = 0; }
 }
 
