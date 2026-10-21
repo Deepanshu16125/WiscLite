@@ -1,7 +1,7 @@
 // WiscLite landing page: live KPIs from bench.json + a toy "play a put" simulation.
 (function () {
   const $ = id => document.getElementById(id);
-  const f = (x, d = 2) => Number(x).toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d });
+  const f = (x, d = 2) => Number(+x + 1e-9).toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d });
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
   // ---------- real numbers ----------
@@ -25,9 +25,9 @@
       [f(b.puts_per_sec / 1000, 0) + 'k → ' + f(w.puts_per_sec / 1000, 0) + 'k', 'puts per second']]
       .map(k => `<div class="kpi"><b>${k[0]}</b><span>${k[1]}</span></div>`).join('');
     const max = Math.max(b.stats.write_amplification, w.stats.write_amplification) * 1.08;
-    $('wa').innerHTML = [b, w].map(r => {
+    $('wa').innerHTML = [b, w].map((r, ri) => {
       const parts = [[r.stats.wal_bytes, '--accent-soft'], [r.stats.vlog_bytes, '--accent'], [r.stats.sst_bytes, '--contrast'], [r.stats.compaction_bytes, '--accent-deep']];
-      return `<div class="row"><div class="name">${r.mode}</div><div class="bar">${parts.map(([v, c]) => `<i style="width:${100 * v / L(r) / max}%;background:var(${c})"></i>`).join('')}<b class="tick" style="left:${100 / max}%"><span>1.0× data</span></b></div><div class="val">${f(r.stats.write_amplification, 3)}×</div></div>`;
+      return `<div class="row"><div class="name">${r.mode}</div><div class="bar">${parts.map(([v, c]) => `<i style="width:${100 * v / L(r) / max}%;background:var(${c})"></i>`).join('')}<b class="tick" style="left:${100 / max}%">${ri === 0 ? '<span>1.0× data</span>' : ''}</b></div><div class="val">${f(r.stats.write_amplification, 3)}×</div></div>`;
     }).join('');
     $('method').textContent = `${b.ops.toLocaleString()} random puts of ${b.value_size} B per mode · ${B.memtable_bytes / 1048576} MiB memtable · size-tiered compaction, fan-in ${B.compaction_fanin} · ${B.machine}.`;
   }

@@ -527,7 +527,7 @@ const C={wal:'var(--accent-soft)',vlog:'var(--accent)',sst:'var(--contrast)',cmp
 const col=m=>m==='Baseline'?C.base:C.wisc;
 const f=(x,d=2)=>Number(x).toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d});
 const $=id=>document.getElementById(id);
-function bars(el,rows,max,fmt,ticks=[]){el.innerHTML=rows.map(r=>`<div class="row"><div class="name">${r.name}</div><div class="bar">${r.parts.map(p=>`<i style="width:${100*p.v/max}%;background:${p.c}" title="${p.t||''}"></i>`).join('')}${ticks.map(t=>`<b class="tick" style="left:${100*t.v/max}%">${t.l?`<span>${t.l}</span>`:''}</b>`).join('')}${r.mean!=null?`<b class="mean" style="left:${100*r.mean/max}%" title="mean"></b>`:''}</div><div class="val">${fmt(r)}</div></div>`).join('')}
+function bars(el,rows,max,fmt,ticks=[]){el.innerHTML=rows.map((r,ri)=>`<div class="row"><div class="name">${r.name}</div><div class="bar">${r.parts.map(p=>`<i style="width:${100*p.v/max}%;background:${p.c}" title="${p.t||''}"></i>`).join('')}${ticks.map(t=>`<b class="tick" style="left:${100*t.v/max}%">${t.l&&ri===0?`<span>${t.l}</span>`:''}</b>`).join('')}${r.mean!=null?`<b class="mean" style="left:${100*r.mean/max}%" title="mean"></b>`:''}</div><div class="val">${fmt(r)}</div></div>`).join('')}
 function lineChart(svg,series,{xs,xl,yl,xfmt,yfmt,ymax,mark}){
   const W=980,H=300,L=56,R=20,T=16,B=40,x0=Math.min(...xs),x1=Math.max(...xs);
   const X=v=>L+(W-L-R)*(v-x0)/(x1-x0||1),Y=v=>H-B-(H-T-B)*v/ymax;
