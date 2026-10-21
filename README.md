@@ -33,7 +33,7 @@ flowchart LR
 | `server` | `src/server.rs` | `wisclite serve`: a std-only localhost HTTP server for the dashboard plus a JSON API. |
 
 ## Results (real runs, `wisclite bench`)
-Each run uses random 16-byte keys with 1,024-byte random values, a 4 MiB memtable, size-tiered compaction with fan-in 4, and no per-write fsync, on an Intel Xeon cloud VM (release build). Write amplification (WA) **now includes compaction bytes**.
+Each run uses random 16-byte keys with 1,024-byte random values, a 4 MiB memtable, size-tiered compaction with fan-in 4, and no per-write fsync, release build; measured on a laptop-class machine; byte counts are hardware-independent. Write amplification (WA) **now includes compaction bytes**.
 
 **50,000 puts** (`bench.json`)
 

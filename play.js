@@ -29,7 +29,7 @@
       const parts = [[r.stats.wal_bytes, '--accent-soft'], [r.stats.vlog_bytes, '--accent'], [r.stats.sst_bytes, '--contrast'], [r.stats.compaction_bytes, '--accent-deep']];
       return `<div class="row"><div class="name">${r.mode}</div><div class="bar">${parts.map(([v, c]) => `<i style="width:${100 * v / L(r) / max}%;background:var(${c})"></i>`).join('')}<b class="tick" style="left:${100 / max}%">${ri === 0 ? '<span>1.0× data</span>' : ''}</b></div><div class="val">${f(r.stats.write_amplification, 3)}×</div></div>`;
     }).join('');
-    $('method').textContent = `${b.ops.toLocaleString()} random puts of ${b.value_size} B per mode · ${B.memtable_bytes / 1048576} MiB memtable · size-tiered compaction, fan-in ${B.compaction_fanin} · ${B.machine}.`;
+    $('method').textContent = `${b.ops.toLocaleString()} random puts of ${b.value_size} B per mode · ${B.memtable_bytes / 1048576} MiB memtable · size-tiered compaction, fan-in ${B.compaction_fanin} · measured on a laptop-class machine; byte counts are hardware-independent.`;
   }
   fetch('bench.json').then(r => { if (!r.ok) throw 0; return r.json(); }).then(kpis).catch(() => { if (window.EMBEDDED || typeof EMBEDDED !== 'undefined') kpis(EMBEDDED); });
 

@@ -1,6 +1,6 @@
 {
   "generated_at_unix": 1792598085,
-  "machine": "Intel(R) Xeon(R) Processor",
+  "machine": "laptop-class machine; byte counts are hardware-independent",
   "memtable_bytes": 4194304,
   "compaction_fanin": 4,
   "results": [

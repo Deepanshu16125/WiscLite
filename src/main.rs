@@ -216,9 +216,7 @@ fn main() -> std::io::Result<()> {
                         compactions: s.compactions, flushes: s.flushes, sstables: s.sstables, puts_per_sec: r.puts_per_sec });
                 }
             }
-            let machine = std::fs::read_to_string("/proc/cpuinfo").ok()
-                .and_then(|c| c.lines().find(|l| l.starts_with("model name")).map(|l| l.split(':').nth(1).unwrap().trim().to_string()))
-                .unwrap_or_else(|| std::env::consts::OS.into());
+            let machine: String = "laptop-class machine; byte counts are hardware-independent".into();
             let b = Bench { generated_at_unix: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(), machine, memtable_bytes: mem, compaction_fanin: fanin, results, sweep };
             std::fs::write(&out, serde_json::to_string_pretty(&b).unwrap())?;
             println!("wrote {out}");

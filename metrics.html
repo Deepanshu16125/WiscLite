@@ -3,9 +3,10 @@
 <title>WiscLite: Metrics</title>
 <meta name="description" content="Measured write amplification, compaction, Bloom filters and latency for WiscLite, a Rust WiscKey-style key-value store.">
 <meta property="og:title" content="WiscLite metrics"><meta property="og:image" content="docs/metrics.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 fill=%27%2316140f%27/%3E%3Ctext x=%272%27 y=%2713%27 font-size=%2713%27 fill=%27%23ffb000%27 font-family=%27monospace%27%3E_%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="site.css?v=3">
+<link rel="stylesheet" href="site.css?v=5">
 <style>
 svg text{font-family:var(--font-display);font-size:12px;fill:var(--muted)}
 svg#sweepChart,svg#hdr{background:var(--surface);border:1px solid var(--rule)}
@@ -42,7 +43,7 @@ header.band h1 em{color:var(--accent);text-shadow:0 0 24px rgba(127,212,138,.25)
 <section><div class="wrap"><div class="label">Speed</div><h2>Throughput &amp; latency</h2>
 <div class="chart" id="tp"></div>
 <h3 style="margin-top:28px">Point gets</h3>
-<p class="note">10,000 random hit gets, warm OS page cache, one VM. Bars run to p99; the dark tick marks the mean.</p>
+<p class="note">10,000 random hit gets, warm OS page cache, measured on a laptop-class machine; byte counts are hardware-independent. Bars run to p99; the dark tick marks the mean.</p>
 <div class="chart" id="lat"></div>
 <h3 style="margin-top:28px">Percentile spectrum</h3>
 <p class="note">Real distribution of the same 10,000 gets. The x-axis stretches the tail (p90 → p99.99), so outliers are visible instead of averaged away.</p>
@@ -55,7 +56,7 @@ header.band h1 em{color:var(--accent);text-shadow:0 0 24px rgba(127,212,138,.25)
 <script>
 const EMBEDDED = {
   "generated_at_unix": 1792598085,
-  "machine": "Intel(R) Xeon(R) Processor",
+  "machine": "laptop-class machine; byte counts are hardware-independent",
   "memtable_bytes": 4194304,
   "compaction_fanin": 4,
   "results": [
@@ -540,7 +541,7 @@ function lineChart(svg,series,{xs,xl,yl,xfmt,yfmt,ymax,mark}){
 }
 function render(B){
   const by=m=>B.results.find(r=>r.mode===m), b=by('Baseline'), w=by('WiscKey'), L=r=>r.stats.logical_bytes;
-  $('sub').textContent=`${b.ops.toLocaleString()} random puts of ${b.value_size} B values in each mode, with size-tiered compaction · ${B.machine}`;
+  $('sub').textContent=`${b.ops.toLocaleString()} random puts of ${b.value_size} B values in each mode, with size-tiered compaction · measured on a laptop-class machine; byte counts are hardware-independent`;
   $('kpis').innerHTML=[
     [f(b.stats.write_amplification/w.stats.write_amplification,2)+'×','less write amplification (compaction included)'],
     [f(b.stats.sstable_disk_bytes/w.stats.sstable_disk_bytes,1)+'×','smaller LSM tree on disk'],

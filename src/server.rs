@@ -19,6 +19,7 @@ const EMBEDDED: &[(&str, &str, &str)] = &[
     ("metrics.html", "text/html; charset=utf-8", include_str!("../metrics.html")),
     ("site.css", "text/css; charset=utf-8", include_str!("../site.css")),
     ("play.js", "text/javascript; charset=utf-8", include_str!("../play.js")),
+    ("try.js", "text/javascript; charset=utf-8", include_str!("../try.js")),
 ];
 const MAX_BODY: usize = 16 << 20;
 

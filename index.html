@@ -4,9 +4,10 @@
 <meta name="description" content="WiscLite is a from-scratch Rust key-value store implementing WiscKey (FAST '16) key-value separation, with measured write amplification.">
 <meta property="og:title" content="WiscLite"><meta property="og:description" content="A Rust LSM that appends values once, and only sorts the keys.">
 <meta property="og:image" content="docs/metrics.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 fill=%27%2316140f%27/%3E%3Ctext x=%272%27 y=%2713%27 font-size=%2713%27 fill=%27%23ffb000%27 font-family=%27monospace%27%3E_%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="site.css?v=3">
+<link rel="stylesheet" href="site.css?v=5">
 <style>
 .hero{padding:80px 0 64px}
 .hero .sub{font-size:22px;color:var(--band-muted);max-width:640px;margin:18px 0 8px}
@@ -40,6 +41,27 @@ ol.path small{display:block;color:var(--muted)}
 .strip .next li::before{content:"[ ]";color:var(--contrast)}
 .cites li{margin:8px 0}
 @media (max-width:760px){.strip{grid-template-columns:1fr}.counters{grid-template-columns:repeat(2,1fr)}}
+
+.hero a.btn{display:inline-block;padding:13px 22px;font:700 14px var(--font-display);border:1px solid #ffb000;border:1px solid var(--contrast);text-decoration:none;margin:6px 12px 0 0}
+.hero a.btn.primary{background:#ffb000;background:var(--contrast);color:#16140f;color:var(--on-accent)}
+.hero a.btn.ghost{background:transparent;color:#ffb000;color:var(--contrast)}
+.hero a.btn::before{content:"> ";opacity:.7}
+.tryio{border:1px solid var(--rule);background:var(--surface);margin-top:16px}
+.tlog{height:190px;overflow:auto;padding:14px 18px;font:13px/1.6 var(--font-display);color:var(--muted);white-space:pre-wrap}
+.tlog .c{color:var(--text)}.tlog .c::before{content:"wisclite> ";color:var(--contrast)}.tlog .ok{color:var(--accent)}.tlog .er{color:#ff7a6b}
+.tform{display:flex;gap:10px;align-items:center;border-top:1px dashed var(--rule);padding:10px 18px}
+.tform .pr{font:700 14px var(--font-display);color:var(--contrast)}
+.tform input{flex:1;background:transparent;border:0;outline:0;color:var(--text);font:14px var(--font-display);caret-color:var(--contrast);padding:6px 0}
+.tform button,.tchips button{font:700 12px var(--font-display);background:transparent;border:1px solid var(--contrast);color:var(--contrast);padding:6px 12px;cursor:pointer}
+.tchips{display:flex;flex-wrap:wrap;gap:8px;padding:0 18px 14px}.tchips button{border-color:var(--rule);color:var(--text)}.tchips button.warn{border-color:#ff7a6b;color:#ff7a6b}
+.tviz{margin-top:20px}.tviz>div{border:1px solid var(--rule);background:var(--surface);padding:16px 18px;font:12px/1.5 var(--font-display)}
+.tviz h4{margin:0 0 10px;font:700 13px var(--font-display);color:var(--text)}
+.tviz .lane{margin:8px 0}.tviz .lane>span{color:var(--muted);display:inline-block;width:86px;vertical-align:top}
+.tviz .cells{display:inline-flex;flex-wrap:wrap;gap:4px;max-width:calc(100% - 92px)}
+.tviz .cell{padding:2px 6px;border:1px solid var(--rule);color:var(--text);white-space:nowrap}
+.tviz .cell.del{text-decoration:line-through;color:#ff7a6b}.tviz .cell.new{box-shadow:0 0 0 1px var(--contrast)}
+.tviz .wa{margin-top:12px;border-top:1px dashed var(--rule);padding-top:10px;color:var(--muted)}.tviz .wa b{font-size:20px}
+.slider span{display:block;font:13px var(--font-display);color:var(--muted)}.slider b{color:var(--text);font-size:18px;margin-left:8px}
 </style></head><body>
 <header class="band hero"><div class="wrap">
 <div class="label">Storage engine · WiscKey, FAST '16</div>
@@ -53,6 +75,37 @@ ol.path small{display:block;color:var(--muted)}
 <a class="btn primary" href="metrics.html">Open the metrics</a><a class="btn ghost" href="https://github.com/Deepanshu16125/WiscLite">View source</a>
 <p class="limits">Teaching-scale engine: single-threaded, size-tiered (not leveled) compaction, stop-the-world value-log GC, and scans slower than the baseline. Same idea as Badger and TiKV's Titan, built from scratch.</p>
 </div></header>
+<section class="sand" id="sim"><div class="wrap"><div class="label">Play a put</div><h2>Watch the bytes pile up</h2>
+<p class="note">A toy model of the real engine: 200 keys, an 8-entry memtable, and size-tiered compaction at fan-in 4. Sizes are real (16 B keys, 1 KB values, 21 B pointers), and the counters are live.</p>
+<noscript><p class="note">Enable JavaScript to run the animation.</p></noscript>
+<div class="controls"><button id="b-step">Step</button><button id="b-play">Play</button><button id="b-reset">Reset</button>
+<label class="note" style="display:flex;gap:8px;align-items:center">speed <input type="range" id="b-speed" min="1" max="40" value="8" style="width:140px"></label></div>
+<svg id="sim-svg" viewBox="0 0 980 380" width="100%" role="img" aria-label="Animated LSM write path, baseline vs WiscKey"></svg>
+<div id="caption">Press Step to put the first key.</div>
+<div class="cols" style="margin-top:18px">
+<div class="counters" id="c-base"></div><div class="counters" id="c-wisc"></div></div>
+</div></section>
+<section class="surface" id="try"><div class="wrap"><div class="label">Try it</div><h2>Type into both engines at once</h2>
+<p class="note">A client-side toy: each command runs against a baseline store and a WiscKey store side by side. The memtable holds 4 entries and flushes into an sstable, and every 4 sstables merge into one. <code>crash</code> wipes the memtable and replays the WAL. Byte counts use the engine's real record sizes.</p>
+<div class="tryio">
+<div id="t-log" class="tlog" aria-live="polite"></div>
+<form id="t-form" class="tform" autocomplete="off"><span class="pr">wisclite&gt;</span><input id="t-in" spellcheck="false" placeholder="put user:1 dee   ·   get user:1   ·   del user:1   ·   scan a z   ·   crash   ·   help" aria-label="command"><button type="submit">run</button></form>
+<div class="tchips"><button data-c="put user:1 dee">put user:1 dee</button><button data-c="put user:2 eve">put user:2 eve</button><button data-c="get user:1">get user:1</button><button data-c="del user:2">del user:2</button><button data-c="scan a z">scan a z</button><button data-c="fill 12">fill 12</button><button data-c="crash" class="warn">crash ⚡</button><button data-c="reset">reset</button></div>
+</div>
+<div class="cols tviz"><div id="t-base"></div><div id="t-wisc"></div></div>
+</div></section>
+
+<section class="sand" id="est"><div class="wrap"><div class="label">What if</div><h2>Drag the value size and see the gap move</h2>
+<p class="note"><b style="color:var(--contrast)">Estimate</b> from the measured model: WAL + vlog + flush + compaction rewrites ≈ max(0, log₄(tree / memtable) − 1), using real record sizes. The model is calibrated against real runs (50k × 1 KB: 3.05× vs 1.10× measured; 500k: 4.55× vs 1.16×).</p>
+<div class="cols" style="margin-top:18px">
+<label class="slider"><span>value size <b id="e-vs-l"></b></span><input type="range" id="e-vs" min="4" max="14" step="0.25" value="10"></label>
+<label class="slider"><span>keys <b id="e-n-l"></b></span><input type="range" id="e-n" min="3" max="7" step="0.05" value="4.7"></label>
+</div>
+<div class="chart" id="e-bars"></div>
+<div class="kpis" id="e-kpis"></div>
+<p class="note" id="e-note"></p>
+</div></section>
+
 
 <section class="surface"><div class="wrap cols">
 <div><div class="label">Use it</div><h2>The whole API, in eight lines</h2>
@@ -82,15 +135,7 @@ ol.path small{display:block;color:var(--muted)}
 <li>Flush and compact pointers only<small>the tree is ~16× smaller, so merges are cheap</small></li></ol></div>
 </div></div></section>
 
-<section class="sand" id="sim"><div class="wrap"><div class="label">Play a put</div><h2>Watch the bytes pile up</h2>
-<p class="note">A toy model of the real engine: 200 keys, an 8-entry memtable, and size-tiered compaction at fan-in 4. Sizes are real (16 B keys, 1 KB values, 21 B pointers), and the counters are live.</p>
-<div class="controls"><button id="b-step">Step</button><button id="b-play">Play</button><button id="b-reset">Reset</button>
-<label class="note" style="display:flex;gap:8px;align-items:center">speed <input type="range" id="b-speed" min="1" max="40" value="8" style="width:140px"></label></div>
-<svg id="sim-svg" viewBox="0 0 980 380" width="100%" role="img" aria-label="Animated LSM write path, baseline vs WiscKey"></svg>
-<div id="caption">Press Step to put the first key.</div>
-<div class="cols" style="margin-top:18px">
-<div class="counters" id="c-base"></div><div class="counters" id="c-wisc"></div></div>
-</div></section>
+
 
 <section class="surface"><div class="wrap"><div class="label">The measurement</div><h2>50,000 real puts</h2>
 <div class="kpis" id="kpis"></div>
@@ -126,10 +171,10 @@ ol.path small{display:block;color:var(--muted)}
 <li>PingCAP. <a href="https://www.pingcap.com/blog/titan-storage-engine-design-and-implementation/">Titan: storage engine design and implementation</a>.</li>
 <li>A. Chi. <a href="https://skyzh.github.io/mini-lsm/">Mini-LSM: build a simple LSM-tree storage engine in Rust</a>.</li>
 <li>Dgraph. <a href="https://github.com/dgraph-io/badger">Badger</a>, a Go WiscKey-style store.</li></ol></div></section>
-<footer><div class="wrap" id="foot">Measured on one cloud VM: 4 MiB memtable, no per-write fsync, warm-cache gets. · <a href="https://github.com/Deepanshu16125/WiscLite">GitHub</a></div></footer>
+<footer><div class="wrap" id="foot">Measured on a laptop-class machine (byte counts are hardware-independent): 4 MiB memtable, no per-write fsync, warm-cache gets. · <a href="https://github.com/Deepanshu16125/WiscLite">GitHub</a></div></footer>
 <script>const EMBEDDED = {
   "generated_at_unix": 1792598085,
-  "machine": "Intel(R) Xeon(R) Processor",
+  "machine": "laptop-class machine; byte counts are hardware-independent",
   "memtable_bytes": 4194304,
   "compaction_fanin": 4,
   "results": [
@@ -598,5 +643,6 @@ ol.path small{display:block;color:var(--muted)}
   ]
 };
 </script>
-<script src="play.js?v=3"></script>
+<script src="play.js?v=5"></script>
+<script src="try.js?v=5"></script>
 </body></html>
