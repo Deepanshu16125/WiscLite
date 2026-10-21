@@ -2,11 +2,12 @@
 pub mod bloom;
 pub mod engine;
 pub mod memtable;
+pub mod server;
 pub mod sstable;
 pub mod vlog;
 pub mod wal;
 
-pub use engine::{Db, Mode, Options, Stats};
+pub use engine::{Db, GcReport, Mode, Options, Stats};
 
 /// Pointer into the value log.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
