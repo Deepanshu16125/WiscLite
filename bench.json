@@ -1,5 +1,5 @@
 {
-  "generated_at_unix": 1792597947,
+  "generated_at_unix": 1792598085,
   "machine": "Intel(R) Xeon(R) Processor",
   "memtable_bytes": 4194304,
   "compaction_fanin": 4,
@@ -8,14 +8,14 @@
       "mode": "Baseline",
       "ops": 50000,
       "value_size": 1024,
-      "put_secs": 0.369547155,
-      "puts_per_sec": 135300.73043046426,
-      "mb_per_sec": 141.11866183897425,
-      "get_p50_us": 2.438,
-      "get_p99_us": 8.07,
-      "get_mean_us": 2.6767317000000026,
-      "miss_get_p50_us": 0.204,
-      "scan_us": 3331.8160000000003,
+      "put_secs": 0.423893442,
+      "puts_per_sec": 117954.17207704761,
+      "mb_per_sec": 123.02620147636065,
+      "get_p50_us": 3.051,
+      "get_p99_us": 10.443,
+      "get_mean_us": 3.3835279000000025,
+      "miss_get_p50_us": 0.212,
+      "scan_us": 4384.848,
       "scan_rows": 3266,
       "disk_bytes": 54212637,
       "stats": {
@@ -47,20 +47,114 @@
         "bytes_after": 54212529,
         "reclaimed_bytes": 532396
       },
-      "gc_secs": 0.167598381
+      "gc_secs": 0.201592869,
+      "get_spectrum": [
+        [
+          0.0,
+          0.8350000000000001
+        ],
+        [
+          50.0,
+          3.051
+        ],
+        [
+          75.0,
+          3.738
+        ],
+        [
+          90.0,
+          4.655
+        ],
+        [
+          95.0,
+          5.632
+        ],
+        [
+          99.0,
+          10.443
+        ],
+        [
+          99.5,
+          11.770000000000001
+        ],
+        [
+          99.9,
+          20.68
+        ],
+        [
+          99.99,
+          60.795
+        ],
+        [
+          100.0,
+          69.833
+        ]
+      ],
+      "get_histogram": [
+        {
+          "lo_us": 0.0,
+          "hi_us": 0.5,
+          "count": 0
+        },
+        {
+          "lo_us": 0.5,
+          "hi_us": 1.0,
+          "count": 11
+        },
+        {
+          "lo_us": 1.0,
+          "hi_us": 2.0,
+          "count": 619
+        },
+        {
+          "lo_us": 2.0,
+          "hi_us": 4.0,
+          "count": 7492
+        },
+        {
+          "lo_us": 4.0,
+          "hi_us": 8.0,
+          "count": 1678
+        },
+        {
+          "lo_us": 8.0,
+          "hi_us": 16.0,
+          "count": 182
+        },
+        {
+          "lo_us": 16.0,
+          "hi_us": 32.0,
+          "count": 14
+        },
+        {
+          "lo_us": 32.0,
+          "hi_us": 64.0,
+          "count": 3
+        },
+        {
+          "lo_us": 64.0,
+          "hi_us": 128.0,
+          "count": 1
+        },
+        {
+          "lo_us": 128.0,
+          "hi_us": 256.0,
+          "count": 0
+        }
+      ]
     },
     {
       "mode": "WiscKey",
       "ops": 50000,
       "value_size": 1024,
-      "put_secs": 0.192732088,
-      "puts_per_sec": 259427.48049302513,
-      "mb_per_sec": 270.5828621542252,
-      "get_p50_us": 4.532,
-      "get_p99_us": 21.005,
-      "get_mean_us": 5.233195500000007,
-      "miss_get_p50_us": 0.096,
-      "scan_us": 11412.971,
+      "put_secs": 0.183759702,
+      "puts_per_sec": 272094.47694903205,
+      "mb_per_sec": 283.7945394578404,
+      "get_p50_us": 4.7589999999999995,
+      "get_p99_us": 13.321,
+      "get_mean_us": 5.184412500000003,
+      "miss_get_p50_us": 0.077,
+      "scan_us": 9486.241,
       "scan_rows": 3266,
       "disk_bytes": 55012540,
       "stats": {
@@ -92,7 +186,285 @@
         "bytes_after": 55012529,
         "reclaimed_bytes": 13753154
       },
-      "gc_secs": 0.233312328
+      "gc_secs": 0.237946098,
+      "get_spectrum": [
+        [
+          0.0,
+          1.423
+        ],
+        [
+          50.0,
+          4.7589999999999995
+        ],
+        [
+          75.0,
+          5.654000000000001
+        ],
+        [
+          90.0,
+          6.956
+        ],
+        [
+          95.0,
+          7.9750000000000005
+        ],
+        [
+          99.0,
+          13.321
+        ],
+        [
+          99.5,
+          16.512999999999998
+        ],
+        [
+          99.9,
+          32.118
+        ],
+        [
+          99.99,
+          79.44200000000001
+        ],
+        [
+          100.0,
+          81.696
+        ]
+      ],
+      "get_histogram": [
+        {
+          "lo_us": 0.0,
+          "hi_us": 0.5,
+          "count": 0
+        },
+        {
+          "lo_us": 0.5,
+          "hi_us": 1.0,
+          "count": 0
+        },
+        {
+          "lo_us": 1.0,
+          "hi_us": 2.0,
+          "count": 30
+        },
+        {
+          "lo_us": 2.0,
+          "hi_us": 4.0,
+          "count": 2083
+        },
+        {
+          "lo_us": 4.0,
+          "hi_us": 8.0,
+          "count": 7398
+        },
+        {
+          "lo_us": 8.0,
+          "hi_us": 16.0,
+          "count": 436
+        },
+        {
+          "lo_us": 16.0,
+          "hi_us": 32.0,
+          "count": 42
+        },
+        {
+          "lo_us": 32.0,
+          "hi_us": 64.0,
+          "count": 9
+        },
+        {
+          "lo_us": 64.0,
+          "hi_us": 128.0,
+          "count": 2
+        },
+        {
+          "lo_us": 128.0,
+          "hi_us": 256.0,
+          "count": 0
+        }
+      ]
+    }
+  ],
+  "sweep": [
+    {
+      "ops": 10000,
+      "mode": "Baseline",
+      "write_amplification": 2.0558569511025886,
+      "tree_amplification": 1.0395578139980826,
+      "physical_bytes": 21442588,
+      "logical_bytes": 10430000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 3,
+      "sstables": 3,
+      "puts_per_sec": 215942.78829042456
+    },
+    {
+      "ops": 10000,
+      "mode": "WiscKey",
+      "write_amplification": 1.097078523489933,
+      "tree_amplification": 0.06543902205177372,
+      "physical_bytes": 11442529,
+      "logical_bytes": 10430000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 1,
+      "sstables": 1,
+      "puts_per_sec": 235379.02578457183
+    },
+    {
+      "ops": 25000,
+      "mode": "Baseline",
+      "write_amplification": 2.7216680728667306,
+      "tree_amplification": 1.7053689357622244,
+      "physical_bytes": 70967495,
+      "logical_bytes": 26075000,
+      "compaction_bytes": 17361040,
+      "compactions": 1,
+      "flushes": 7,
+      "sstables": 4,
+      "puts_per_sec": 146787.12746410523
+    },
+    {
+      "ops": 25000,
+      "mode": "WiscKey",
+      "write_amplification": 1.0970768552253116,
+      "tree_amplification": 0.06543735378715244,
+      "physical_bytes": 28606279,
+      "logical_bytes": 26075000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 1,
+      "sstables": 1,
+      "puts_per_sec": 276600.7922333507
+    },
+    {
+      "ops": 50000,
+      "mode": "Baseline",
+      "write_amplification": 3.05457334611697,
+      "tree_amplification": 2.038274209012464,
+      "physical_bytes": 159296000,
+      "logical_bytes": 52150000,
+      "compaction_bytes": 52083120,
+      "compactions": 3,
+      "flushes": 13,
+      "sstables": 4,
+      "puts_per_sec": 151366.0087519887
+    },
+    {
+      "ops": 50000,
+      "mode": "WiscKey",
+      "write_amplification": 1.0970762991371046,
+      "tree_amplification": 0.06543679769894535,
+      "physical_bytes": 57212529,
+      "logical_bytes": 52150000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 1,
+      "sstables": 1,
+      "puts_per_sec": 275360.4283515635
+    },
+    {
+      "ops": 100000,
+      "mode": "Baseline",
+      "write_amplification": 3.7203839309683606,
+      "tree_amplification": 2.704084793863854,
+      "physical_bytes": 388036044,
+      "logical_bytes": 104300000,
+      "compaction_bytes": 173610313,
+      "compactions": 7,
+      "flushes": 25,
+      "sstables": 4,
+      "puts_per_sec": 123100.7590200764
+    },
+    {
+      "ops": 100000,
+      "mode": "WiscKey",
+      "write_amplification": 1.097076021093001,
+      "tree_amplification": 0.0654365196548418,
+      "physical_bytes": 114425029,
+      "logical_bytes": 104300000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 1,
+      "sstables": 1,
+      "puts_per_sec": 292164.3581816062
+    },
+    {
+      "ops": 200000,
+      "mode": "Baseline",
+      "write_amplification": 4.053289367209971,
+      "tree_amplification": 3.036990230105465,
+      "physical_bytes": 845516162,
+      "logical_bytes": 208600000,
+      "compaction_bytes": 416664699,
+      "compactions": 15,
+      "flushes": 50,
+      "sstables": 5,
+      "puts_per_sec": 102782.46507074239
+    },
+    {
+      "ops": 200000,
+      "mode": "WiscKey",
+      "write_amplification": 1.097076021093001,
+      "tree_amplification": 0.0654365196548418,
+      "physical_bytes": 228850058,
+      "logical_bytes": 208600000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 2,
+      "sstables": 2,
+      "puts_per_sec": 277789.4611395309
+    },
+    {
+      "ops": 350000,
+      "mode": "Baseline",
+      "write_amplification": 4.8074915271880565,
+      "tree_amplification": 3.79119239008355,
+      "physical_bytes": 1754974782,
+      "logical_bytes": 365050000,
+      "compaction_bytes": 1004484708,
+      "compactions": 28,
+      "flushes": 88,
+      "sstables": 4,
+      "puts_per_sec": 82021.35496936817
+    },
+    {
+      "ops": 350000,
+      "mode": "WiscKey",
+      "write_amplification": 1.0970759813724147,
+      "tree_amplification": 0.06543647993425558,
+      "physical_bytes": 400487587,
+      "logical_bytes": 365050000,
+      "compaction_bytes": 0,
+      "compactions": 0,
+      "flushes": 3,
+      "sstables": 3,
+      "puts_per_sec": 273331.6386563484
+    },
+    {
+      "ops": 500000,
+      "mode": "Baseline",
+      "write_amplification": 4.552647386385427,
+      "tree_amplification": 3.5363482492809206,
+      "physical_bytes": 2374205612,
+      "logical_bytes": 521500000,
+      "compaction_bytes": 1302076956,
+      "compactions": 39,
+      "flushes": 125,
+      "sstables": 8,
+      "puts_per_sec": 92602.1289999166
+    },
+    {
+      "ops": 500000,
+      "mode": "WiscKey",
+      "write_amplification": 1.1625122627037392,
+      "tree_amplification": 0.13087276126558006,
+      "physical_bytes": 606250145,
+      "logical_bytes": 521500000,
+      "compaction_bytes": 34125029,
+      "compactions": 1,
+      "flushes": 4,
+      "sstables": 1,
+      "puts_per_sec": 240213.83870512326
     }
   ]
 }

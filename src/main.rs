@@ -11,7 +11,7 @@ fn usage() -> ! {
   compact                           merge all sstables (drops tombstones)
   stats
   serve [--port 7878]               dashboard + JSON API on http://127.0.0.1:PORT
-  bench [--n 50000] [--value-size 1024] [--gets 10000] [--memtable BYTES] [--fanin 4] [--out bench.json]");
+  bench [--n 50000] [--value-size 1024] [--gets 10000] [--memtable BYTES] [--fanin 4] [--sweep 10000,50000,...|none] [--out bench.json]");
     std::process::exit(2)
 }
 
@@ -35,10 +35,31 @@ struct BenchMode {
     /// After overwriting 25% of keys, run GC.
     gc: GcReport,
     gc_secs: f64,
+    /// Real latency distribution of the hit gets: percentile spectrum + log2 buckets.
+    get_spectrum: Vec<(f64, f64)>,
+    get_histogram: Vec<Bucket>,
 }
 
 #[derive(Serialize)]
-struct Bench { generated_at_unix: u64, machine: String, memtable_bytes: usize, compaction_fanin: usize, results: Vec<BenchMode> }
+struct Bucket { lo_us: f64, hi_us: f64, count: usize }
+
+#[derive(Serialize)]
+struct SweepPoint {
+    ops: usize,
+    mode: Mode,
+    write_amplification: f64,
+    tree_amplification: f64,
+    physical_bytes: u64,
+    logical_bytes: u64,
+    compaction_bytes: u64,
+    compactions: u64,
+    flushes: u64,
+    sstables: usize,
+    puts_per_sec: f64,
+}
+
+#[derive(Serialize)]
+struct Bench { generated_at_unix: u64, machine: String, memtable_bytes: usize, compaction_fanin: usize, results: Vec<BenchMode>, sweep: Vec<SweepPoint> }
 
 fn pct(v: &[f64], p: f64) -> f64 { v[((v.len() as f64 - 1.0) * p).round() as usize] }
 fn sorted(mut v: Vec<f64>) -> Vec<f64> { v.sort_by(|a, b| a.partial_cmp(b).unwrap()); v }
@@ -77,6 +98,18 @@ fn bench_one(mode: Mode, n: usize, vs: usize, gets: usize, mem: usize, fanin: us
     let scan_rows = db.scan(b"key8", Some(b"key9"))?.len();
     let scan_us = t.elapsed().as_secs_f64() * 1e6;
     let lat = sorted(lat);
+    let get_spectrum: Vec<(f64, f64)> = [0.0, 0.5, 0.75, 0.9, 0.95, 0.99, 0.995, 0.999, 0.9999, 1.0]
+        .iter().map(|&p| (p * 100.0, pct(&lat, p))).collect();
+    let mut get_histogram: Vec<Bucket> = Vec::new();
+    let mut lo = 0.25f64;
+    while lo < lat[lat.len() - 1] * 2.0 && get_histogram.len() < 24 {
+        let hi = lo * 2.0;
+        let count = lat.iter().filter(|&&x| x >= lo && x < hi).count();
+        get_histogram.push(Bucket { lo_us: lo, hi_us: hi, count });
+        lo = hi;
+    }
+    let below = lat.iter().filter(|&&x| x < 0.25).count();
+    if let Some(b) = get_histogram.first_mut() { b.count += below; b.lo_us = 0.0; }
     let miss = sorted(miss);
     // Stats for the load phase (WA) + Bloom counters from the read phase.
     let read_stats = db.stats();
@@ -100,7 +133,7 @@ fn bench_one(mode: Mode, n: usize, vs: usize, gets: usize, mem: usize, fanin: us
         get_mean_us: lat.iter().sum::<f64>() / lat.len() as f64,
         miss_get_p50_us: pct(&miss, 0.5),
         scan_us, scan_rows,
-        disk_bytes, stats, gc, gc_secs,
+        disk_bytes, stats, gc, gc_secs, get_spectrum, get_histogram,
     })
 }
 
@@ -120,6 +153,7 @@ fn main() -> std::io::Result<()> {
     let fanin = num(take("--fanin"), 4);
     let limit = num(take("--limit"), 100);
     let port = num(take("--port"), 7878);
+    let sweep_arg = take("--sweep");
     let out = take("--out").unwrap_or_else(|| "bench.json".into());
     let baseline = if let Some(i) = args.iter().position(|a| a == "--baseline") { args.remove(i); true } else { false };
     let opts = Options { mode: if baseline { Mode::Baseline } else { Mode::WiscKey }, compaction_fanin: fanin, ..Default::default() };
@@ -166,10 +200,26 @@ fn main() -> std::io::Result<()> {
                     s.compactions, r.get_p50_us, r.get_p99_us, r.miss_get_p50_us, s.bloom_fpr, r.scan_rows, r.scan_us / 1e3, r.gc.reclaimed_bytes as f64 / 1e6);
                 results.push(r);
             }
+            let mut sweep = Vec::new();
+            let sizes: Vec<usize> = match &sweep_arg {
+                Some(x) if x == "none" => vec![],
+                Some(x) => x.split(',').map(|v| v.parse().unwrap_or_else(|_| usage())).collect(),
+                None => vec![10_000, 25_000, 50_000, 100_000, 200_000, 350_000, 500_000],
+            };
+            for &sz in &sizes {
+                for m in [Mode::Baseline, Mode::WiscKey] {
+                    let r = bench_one(m, sz, vs, 1000, mem, fanin)?;
+                    let s = r.stats;
+                    println!("sweep {:>7} {:<9} WA {:.3}  compactions {}", sz, m.as_str(), s.write_amplification, s.compactions);
+                    sweep.push(SweepPoint { ops: sz, mode: m, write_amplification: s.write_amplification, tree_amplification: s.tree_amplification,
+                        physical_bytes: s.physical_bytes, logical_bytes: s.logical_bytes, compaction_bytes: s.compaction_bytes,
+                        compactions: s.compactions, flushes: s.flushes, sstables: s.sstables, puts_per_sec: r.puts_per_sec });
+                }
+            }
             let machine = std::fs::read_to_string("/proc/cpuinfo").ok()
                 .and_then(|c| c.lines().find(|l| l.starts_with("model name")).map(|l| l.split(':').nth(1).unwrap().trim().to_string()))
                 .unwrap_or_else(|| std::env::consts::OS.into());
-            let b = Bench { generated_at_unix: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(), machine, memtable_bytes: mem, compaction_fanin: fanin, results };
+            let b = Bench { generated_at_unix: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(), machine, memtable_bytes: mem, compaction_fanin: fanin, results, sweep };
             std::fs::write(&out, serde_json::to_string_pretty(&b).unwrap())?;
             println!("wrote {out}");
         }
