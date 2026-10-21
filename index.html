@@ -54,12 +54,12 @@ ol.path small{display:block;color:var(--muted)}
 <p class="note">A CLI over a library crate. <code>serve</code> runs this site plus a JSON API on localhost.</p></div>
 <pre>wisclite put hello world
 wisclite get hello             # world
-wisclite del hello             # writes a tombstone
-wisclite scan a z              # ordered range [a, z)
-wisclite gc                    # reclaim dead values from the vlog
+wisclite del hello             # tombstone
+wisclite scan a z              # range [a, z)
+wisclite gc                    # reclaim the vlog
 wisclite stats
-wisclite bench                 # 50k × 1 KB, both modes → bench.json
-wisclite serve --port 7878     # dashboard + /api/put, /api/get</pre>
+wisclite bench                 # → bench.json
+wisclite serve --port 7878     # site + JSON API</pre>
 </div></section>
 
 <section><div class="wrap"><div class="label">The idea</div><h2>Same write path, one decision apart</h2>
