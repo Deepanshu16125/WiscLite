@@ -63,7 +63,7 @@
         }
         case 'get': { if (!r[0]) throw 'usage: get KEY'; const v = lookup(eng.base, r[0]), w = lookup(eng.wisc, r[0]); out(v === null ? '(not found)' : esc(v) + (w === v ? '  <span class="ok">(WiscKey followed the pointer into the vlog)</span>' : '')); break; }
         case 'del': { if (!r[0]) throw 'usage: del KEY'; const ev = del(r[0]); out('OK  <span class="ok">tombstone written; it hides older versions until compaction drops it</span>' + evMsg(ev)); break; }
-        case 'scan': { const rows = scan(r[0] || '', r[1]); out(rows.length ? rows.map(([k, v]) => esc(k) + '\t' + esc(v)).join('\n') + `\n(${rows.length} keys, in order)` : '(no keys in range)'); break; }
+        case 'scan': { const rows = scan(r[0] || '', r[1]); out(rows.length ? rows.map(([k, v]) => esc(k) + '\t' + esc(short(v))).join('\n') + `\n(${rows.length} keys, in order)` : '(no keys in range)'); break; }
         case 'fill': {
           const n = Math.min(64, Math.max(1, +r[0] || 8)); let ev = '';
           for (let i = 0; i < n; i++) { const e = put('k' + String(Math.floor(Math.random() * 900) + 100), 'x'.repeat(1024)); if (e) ev = e === 'compact' || !ev ? e : ev; }

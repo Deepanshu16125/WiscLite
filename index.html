@@ -56,9 +56,9 @@ ol.path small{display:block;color:var(--muted)}
 .tchips{display:flex;flex-wrap:wrap;gap:8px;padding:0 18px 14px}.tchips button{border-color:var(--rule);color:var(--text)}.tchips button.warn{border-color:#ff7a6b;color:#ff7a6b}
 .tviz{margin-top:20px}.tviz>div{border:1px solid var(--rule);background:var(--surface);padding:16px 18px;font:12px/1.5 var(--font-display)}
 .tviz h4{margin:0 0 10px;font:700 13px var(--font-display);color:var(--text)}
-.tviz .lane{margin:8px 0}.tviz .lane>span{color:var(--muted);display:inline-block;width:86px;vertical-align:top}
-.tviz .cells{display:inline-flex;flex-wrap:wrap;gap:4px;max-width:calc(100% - 92px)}
-.tviz .cell{padding:2px 6px;border:1px solid var(--rule);color:var(--text);white-space:nowrap}
+.tviz .lane{margin:8px 0;display:flex;gap:6px}.tviz .lane>span:first-child{color:var(--muted);flex:0 0 80px}
+.tviz .cells{display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0}
+.tviz .cell{padding:2px 6px;border:1px solid var(--rule);color:var(--text);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .tviz .cell.del{text-decoration:line-through;color:#ff7a6b}.tviz .cell.new{box-shadow:0 0 0 1px var(--contrast)}
 .tviz .wa{margin-top:12px;border-top:1px dashed var(--rule);padding-top:10px;color:var(--muted)}.tviz .wa b{font-size:20px}
 .slider span{display:block;font:13px var(--font-display);color:var(--muted)}.slider b{color:var(--text);font-size:18px;margin-left:8px}
@@ -644,5 +644,5 @@ ol.path small{display:block;color:var(--muted)}
 };
 </script>
 <script src="play.js?v=5"></script>
-<script src="try.js?v=5"></script>
+<script src="try.js?v=6"></script>
 </body></html>
