@@ -2,8 +2,10 @@
 pub mod bloom;
 pub mod engine;
 pub mod memtable;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod server;
 pub mod sstable;
+pub mod storage;
 pub mod vlog;
 pub mod wal;
 

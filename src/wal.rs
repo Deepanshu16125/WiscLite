@@ -1,42 +1,45 @@
 //! Write-ahead log. Record: crc32(payload) | len(payload) | payload,
 //! payload = klen u32 | key | encoded Entry. Torn/corrupt tails are dropped on replay.
+use crate::storage::Fs;
 use crate::Entry;
-use std::fs::{File, OpenOptions};
-use std::io::{self, BufWriter, Read, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 pub struct Wal {
+    fs: Fs,
     path: PathBuf,
-    w: BufWriter<File>,
+    buf: Vec<u8>,
     pub bytes_written: u64,
 }
 
 impl Wal {
-    pub fn open(path: &Path) -> io::Result<Self> {
-        let f = OpenOptions::new().create(true).append(true).open(path)?;
-        Ok(Self { path: path.to_path_buf(), w: BufWriter::with_capacity(1 << 20, f), bytes_written: 0 })
+    pub fn open(fs: Fs, path: &Path) -> io::Result<Self> {
+        if !fs.exists(path) { fs.write(path, &[])?; }
+        Ok(Self { fs, path: path.to_path_buf(), buf: Vec::with_capacity(1 << 16), bytes_written: 0 })
     }
     pub fn append(&mut self, key: &[u8], e: &Entry) -> io::Result<()> {
         let mut p = Vec::with_capacity(4 + key.len() + e.encoded_len());
         p.extend_from_slice(&(key.len() as u32).to_le_bytes());
         p.extend_from_slice(key);
         e.encode(&mut p);
-        self.w.write_all(&crc32fast::hash(&p).to_le_bytes())?;
-        self.w.write_all(&(p.len() as u32).to_le_bytes())?;
-        self.w.write_all(&p)?;
+        self.buf.extend_from_slice(&crc32fast::hash(&p).to_le_bytes());
+        self.buf.extend_from_slice(&(p.len() as u32).to_le_bytes());
+        self.buf.extend_from_slice(&p);
         self.bytes_written += 8 + p.len() as u64;
         Ok(())
     }
-    pub fn flush(&mut self) -> io::Result<()> { self.w.flush() }
-    pub fn sync(&mut self) -> io::Result<()> { self.w.flush()?; self.w.get_ref().sync_data() }
+    pub fn flush(&mut self) -> io::Result<()> {
+        if !self.buf.is_empty() { self.fs.append(&self.path, &self.buf)?; self.buf.clear(); }
+        Ok(())
+    }
+    pub fn sync(&mut self) -> io::Result<()> { self.flush()?; self.fs.sync(&self.path) }
     /// Replay all valid records, stopping at the first torn or corrupt one.
-    pub fn replay(path: &Path) -> io::Result<Vec<(Vec<u8>, Entry)>> {
-        let mut buf = Vec::new();
-        match File::open(path) {
-            Ok(mut f) => { f.read_to_end(&mut buf)?; }
+    pub fn replay(fs: &Fs, path: &Path) -> io::Result<Vec<(Vec<u8>, Entry)>> {
+        let buf = match fs.read(path) {
+            Ok(b) => b,
             Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(vec![]),
             Err(e) => return Err(e),
-        }
+        };
         let mut out = Vec::new();
         let mut i = 0;
         while i + 8 <= buf.len() {
@@ -55,11 +58,8 @@ impl Wal {
     }
     /// Discard the log after its contents are durable in an sstable.
     pub fn reset(&mut self) -> io::Result<()> {
-        self.w.flush()?;
-        let f = OpenOptions::new().create(true).write(true).truncate(true).open(&self.path)?;
-        f.sync_all()?;
-        let f = OpenOptions::new().append(true).open(&self.path)?;
-        self.w = BufWriter::with_capacity(1 << 20, f);
-        Ok(())
+        self.buf.clear();
+        self.fs.write(&self.path, &[])?;
+        self.fs.sync(&self.path)
     }
 }

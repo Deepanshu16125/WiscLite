@@ -94,7 +94,7 @@ fn corrupt_wal_record_stops_replay() {
     std::fs::create_dir_all(&d).unwrap();
     let p = d.join("wal");
     {
-        let mut w = Wal::open(&p).unwrap();
+        let mut w = Wal::open(wisclite::storage::StdFs::new(), &p).unwrap();
         w.append(b"x", &Entry::Inline(b"1".to_vec())).unwrap();
         w.append(b"y", &Entry::Inline(b"2".to_vec())).unwrap();
         w.flush().unwrap();
@@ -103,7 +103,7 @@ fn corrupt_wal_record_stops_replay() {
     let last = bytes.len() - 1;
     bytes[last] ^= 0xff; // flip a bit in the second record
     std::fs::write(&p, &bytes).unwrap();
-    let r = Wal::replay(&p).unwrap();
+    let r = Wal::replay(&wisclite::storage::StdFs::new(), &p).unwrap();
     assert_eq!(r.len(), 1);
     assert_eq!(r[0].0, b"x");
 }
@@ -117,8 +117,8 @@ fn sstable_sorted_and_binary_search() {
         .collect();
     entries.push((b"zz".to_vec(), Entry::Tombstone));
     let p = d.join("1.sst");
-    sstable::write(&p, entries.iter().map(|(k, e)| (k, e))).unwrap();
-    let mut t = SsTable::open(&p).unwrap();
+    sstable::write(&wisclite::storage::StdFs::new(), &p, entries.iter().map(|(k, e)| (k, e))).unwrap();
+    let mut t = SsTable::open(wisclite::storage::StdFs::new(), &p).unwrap();
     assert_eq!(t.len(), 1001);
     let keys: Vec<_> = t.keys().cloned().collect();
     assert!(keys.windows(2).all(|w| w[0] < w[1]), "keys must be sorted");
@@ -294,4 +294,32 @@ fn unlisted_files_are_cleaned_on_open() {
     let mut db = Db::open(&d, opts(Mode::WiscKey, 1 << 20)).unwrap();
     assert!(!d.join("999999.sst").exists() && !d.join("vlog.7").exists());
     assert_eq!(db.get(b"a").unwrap(), Some(b"1".to_vec()));
+}
+
+// Same engine, in-memory storage (what the WebAssembly build uses).
+#[test]
+fn memfs_engine_full_cycle_and_crash_recovery() {
+    use wisclite::storage::{MemFs, Storage};
+    use std::sync::Arc;
+    for m in [Mode::WiscKey, Mode::Baseline] {
+        let mem = MemFs::shared();
+        let fs: wisclite::storage::Fs = Arc::new(mem.clone());
+        let o = Options { mode: m, memtable_bytes: 8 << 10, sync_writes: false, compaction_fanin: 4 };
+        {
+            let mut db = Db::open_with(fs.clone(), "db", o.clone()).unwrap();
+            for i in 0..2000u32 { db.put(format!("k{i:05}").as_bytes(), &[7u8; 256]).unwrap(); }
+            db.delete(b"k00010").unwrap();
+            assert!(db.stats().compactions > 0);
+            assert_eq!(db.scan(b"k00000", Some(b"k00020")).unwrap().len(), 19);
+            db.gc().unwrap();
+            db.put(b"tail", b"in-wal-only").unwrap(); // not flushed: lives only in the WAL
+        } // "crash": drop without flush
+        assert!(mem.list(std::path::Path::new("db")).unwrap().iter().any(|n| n == "wal"));
+        let mut db = Db::open_with(fs.clone(), "db", o).unwrap();
+        assert_eq!(db.get(b"tail").unwrap(), Some(b"in-wal-only".to_vec()));
+        assert_eq!(db.get(b"k00010").unwrap(), None);
+        assert_eq!(db.get(b"k01999").unwrap(), Some(vec![7u8; 256]));
+        let files = db.list_files().unwrap();
+        assert!(files.iter().any(|(n, _)| n.ends_with(".sst")));
+    }
 }

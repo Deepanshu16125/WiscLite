@@ -6,12 +6,12 @@
 //! current vlog generation. Files not listed are garbage and deleted on open.
 use crate::memtable::MemTable;
 use crate::sstable::{self, SsTable};
+use crate::storage::{Fs, StdFs};
 use crate::vlog::ValueLog;
 use crate::wal::Wal;
 use crate::Entry;
 use serde::Serialize;
 use std::collections::BTreeMap;
-use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -88,6 +88,7 @@ pub struct GcReport {
 }
 
 pub struct Db {
+    fs: Fs,
     dir: PathBuf,
     opts: Options,
     wal: Wal,
@@ -105,22 +106,24 @@ fn sst_name(id: u64) -> String { format!("{id:06}.sst") }
 fn vlog_name(g: u64) -> String { if g == 0 { "vlog".into() } else { format!("vlog.{g}") } }
 
 impl Db {
-    pub fn open(dir: impl AsRef<Path>, mut opts: Options) -> io::Result<Self> {
+    /// Open on the native file system.
+    pub fn open(dir: impl AsRef<Path>, opts: Options) -> io::Result<Self> { Self::open_with(StdFs::new(), dir, opts) }
+
+    /// Open on any storage backend (e.g. `MemFs` in the browser).
+    pub fn open_with(fs: Fs, dir: impl AsRef<Path>, mut opts: Options) -> io::Result<Self> {
         let dir = dir.as_ref().to_path_buf();
-        fs::create_dir_all(&dir)?;
+        fs.create_dir_all(&dir)?;
         let mode_path = dir.join("MODE");
-        match fs::read_to_string(&mode_path) {
+        match fs.read(&mode_path).map(|b| String::from_utf8_lossy(&b).into_owned()) {
             Ok(s) => {
                 opts.mode = Mode::parse(&s)
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "bad MODE file"))?;
             }
-            Err(_) => fs::write(&mode_path, opts.mode.as_str())?,
+            Err(_) => fs.write(&mode_path, opts.mode.as_str().as_bytes())?,
         }
-        let on_disk: Vec<u64> = fs::read_dir(&dir)?
-            .filter_map(|e| e.ok())
-            .filter_map(|e| e.file_name().into_string().ok()?.strip_suffix(".sst")?.parse().ok())
-            .collect();
-        let (vlog_gen, ids) = match fs::read_to_string(dir.join("MANIFEST")) {
+        let names = fs.list(&dir)?;
+        let on_disk: Vec<u64> = names.iter().filter_map(|n| n.strip_suffix(".sst")?.parse().ok()).collect();
+        let (vlog_gen, ids) = match fs.read(&dir.join("MANIFEST")).map(|b| String::from_utf8_lossy(&b).into_owned()) {
             Ok(m) => {
                 let mut lines = m.lines();
                 let bad = || io::Error::new(io::ErrorKind::InvalidData, "bad MANIFEST");
@@ -132,21 +135,20 @@ impl Db {
             Err(_) => { let mut v = on_disk.clone(); v.sort(); (0, v) } // pre-manifest layout
         };
         // Garbage left by an interrupted flush/compaction/GC.
-        for id in on_disk.iter().filter(|i| !ids.contains(i)) { let _ = fs::remove_file(dir.join(sst_name(*id))); }
-        for e in fs::read_dir(&dir)?.filter_map(|e| e.ok()) {
-            let n = e.file_name().into_string().unwrap_or_default();
-            if (n.starts_with("vlog") && n != vlog_name(vlog_gen)) || n.ends_with(".tmp") { let _ = fs::remove_file(e.path()); }
+        for id in on_disk.iter().filter(|i| !ids.contains(i)) { let _ = fs.remove(&dir.join(sst_name(*id))); }
+        for n in &names {
+            if (n.starts_with("vlog") && *n != vlog_name(vlog_gen)) || n.ends_with(".tmp") { let _ = fs.remove(&dir.join(n)); }
         }
         let mut tables = Vec::new();
-        for id in &ids { tables.push(SsTable::open(&dir.join(sst_name(*id)))?); }
+        for id in &ids { tables.push(SsTable::open(fs.clone(), &dir.join(sst_name(*id)))?); }
         let next_id = on_disk.iter().chain(ids.iter()).max().map_or(1, |x| x + 1);
-        let vlog = if opts.mode == Mode::WiscKey { Some(ValueLog::open(&dir.join(vlog_name(vlog_gen)))?) } else { None };
+        let vlog = if opts.mode == Mode::WiscKey { Some(ValueLog::open(fs.clone(), &dir.join(vlog_name(vlog_gen)))?) } else { None };
         // Crash recovery: rebuild the memtable from the WAL.
         let wal_path = dir.join("wal");
         let mut mem = MemTable::new();
-        for (k, e) in Wal::replay(&wal_path)? { mem.insert(k, e); }
-        let wal = Wal::open(&wal_path)?;
-        let db = Self { dir, opts, wal, vlog, vlog_gen, mem, tables, ids, next_id, stats: Stats::default() };
+        for (k, e) in Wal::replay(&fs, &wal_path)? { mem.insert(k, e); }
+        let wal = Wal::open(fs.clone(), &wal_path)?;
+        let db = Self { fs, dir, opts, wal, vlog, vlog_gen, mem, tables, ids, next_id, stats: Stats::default() };
         db.write_manifest()?;
         Ok(db)
     }
@@ -156,9 +158,9 @@ impl Db {
     fn write_manifest(&self) -> io::Result<()> {
         let ids: Vec<String> = self.ids.iter().map(|i| i.to_string()).collect();
         let tmp = self.dir.join("MANIFEST.tmp");
-        fs::write(&tmp, format!("{}\n{}\n", self.vlog_gen, ids.join(" ")))?;
-        fs::File::open(&tmp)?.sync_all()?;
-        fs::rename(&tmp, self.dir.join("MANIFEST"))
+        self.fs.write(&tmp, format!("{}\n{}\n", self.vlog_gen, ids.join(" ")).as_bytes())?;
+        self.fs.sync(&tmp)?;
+        self.fs.rename(&tmp, &self.dir.join("MANIFEST"))
     }
 
     pub fn put(&mut self, key: &[u8], value: &[u8]) -> io::Result<()> {
@@ -234,10 +236,10 @@ impl Db {
         let id = self.next_id;
         self.next_id += 1;
         let path = self.dir.join(sst_name(id));
-        let n = sstable::write(&path, self.mem.iter())?;
+        let n = sstable::write(&self.fs, &path, self.mem.iter())?;
         self.stats.sst_bytes += n;
         self.stats.flushes += 1;
-        self.tables.push(SsTable::open(&path)?);
+        self.tables.push(SsTable::open(self.fs.clone(), &path)?);
         self.ids.push(id);
         self.write_manifest()?;
         self.mem.clear();
@@ -292,14 +294,14 @@ impl Db {
             let id = self.next_id;
             self.next_id += 1;
             let path = self.dir.join(sst_name(id));
-            self.stats.compaction_bytes += sstable::write(&path, merged.iter())?;
-            new_tables.push(SsTable::open(&path)?);
+            self.stats.compaction_bytes += sstable::write(&self.fs, &path, merged.iter())?;
+            new_tables.push(SsTable::open(self.fs.clone(), &path)?);
             new_ids.push(id);
         }
         let old: Vec<u64> = self.ids.splice(lo..hi, new_ids).collect();
         self.tables.splice(lo..hi, new_tables);
         self.write_manifest()?;
-        for id in old { let _ = fs::remove_file(self.dir.join(sst_name(id))); }
+        for id in old { let _ = self.fs.remove(&self.dir.join(sst_name(id))); }
         self.stats.compactions += 1;
         Ok(())
     }
@@ -315,7 +317,7 @@ impl Db {
         let live_keys = merged.len();
         let new_gen = self.vlog_gen + 1;
         let mut new_vlog = match self.opts.mode {
-            Mode::WiscKey => Some(ValueLog::open(&self.dir.join(vlog_name(new_gen)))?),
+            Mode::WiscKey => Some(ValueLog::open(self.fs.clone(), &self.dir.join(vlog_name(new_gen)))?),
             Mode::Baseline => None,
         };
         let mut rewritten = BTreeMap::new();
@@ -337,8 +339,8 @@ impl Db {
             let id = self.next_id;
             self.next_id += 1;
             let path = self.dir.join(sst_name(id));
-            written += sstable::write(&path, rewritten.iter())?;
-            new_tables.push(SsTable::open(&path)?);
+            written += sstable::write(&self.fs, &path, rewritten.iter())?;
+            new_tables.push(SsTable::open(self.fs.clone(), &path)?);
             new_ids.push(id);
         }
         let old_ids = std::mem::replace(&mut self.ids, new_ids);
@@ -350,8 +352,8 @@ impl Db {
             self.vlog_gen = new_gen;
         }
         self.write_manifest()?; // commit point
-        for id in old_ids { let _ = fs::remove_file(self.dir.join(sst_name(id))); }
-        if self.vlog_gen != old_vlog { let _ = fs::remove_file(self.dir.join(vlog_name(old_vlog))); }
+        for id in old_ids { let _ = self.fs.remove(&self.dir.join(sst_name(id))); }
+        if self.vlog_gen != old_vlog { let _ = self.fs.remove(&self.dir.join(vlog_name(old_vlog))); }
         let after = self.disk_bytes_of_data()?;
         let reclaimed = before.saturating_sub(after);
         self.stats.gc_runs += 1;
@@ -360,9 +362,9 @@ impl Db {
         Ok(GcReport { live_keys, bytes_before: before, bytes_after: after, reclaimed_bytes: reclaimed })
     }
 
-    fn disk_bytes_of_data(&self) -> io::Result<u64> {
+    fn disk_bytes_of_data(&mut self) -> io::Result<u64> {
         let mut t: u64 = self.tables.iter().map(|x| x.size).sum();
-        if self.vlog.is_some() { t += fs::metadata(self.dir.join(vlog_name(self.vlog_gen)))?.len(); }
+        if let Some(v) = &mut self.vlog { v.flush()?; t += self.fs.len(&self.dir.join(vlog_name(self.vlog_gen)))?; }
         Ok(t)
     }
 
@@ -386,8 +388,14 @@ impl Db {
 
     /// On-disk footprint of the database directory.
     pub fn disk_usage(&self) -> io::Result<u64> {
-        let mut t = 0;
-        for e in fs::read_dir(&self.dir)? { t += e?.metadata()?.len(); }
-        Ok(t)
+        Ok(self.list_files()?.iter().map(|f| f.1).sum())
+    }
+
+    /// (file name, size in bytes) for every file in the database directory, sorted by name.
+    pub fn list_files(&self) -> io::Result<Vec<(String, u64)>> {
+        let mut v: Vec<(String, u64)> = self.fs.list(&self.dir)?.into_iter()
+            .map(|n| { let l = self.fs.len(&self.dir.join(&n)).unwrap_or(0); (n, l) }).collect();
+        v.sort();
+        Ok(v)
     }
 }
