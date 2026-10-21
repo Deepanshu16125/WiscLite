@@ -89,8 +89,8 @@
       }
       g += `<text x="${x}" y="80">sstables (${l.tables.length})</text>`;
       l.tables.slice(-9).forEach((t, j) => {
-        const w = Math.max(3, 360 * Math.sqrt(t.bytes / maxBytes));
-        g += `<rect x="${x + 70}" y="${90 + j * 22}" width="${w}" height="16" fill="${c}" opacity="${t.fresh ? 1 : .35 + .12 * t.tier}" ${t.fresh ? `stroke="${css('--text')}"` : ''}/><text x="${x + 76 + w}" y="${102 + j * 22}">tier ${t.tier} · ${t.bytes >= 1e3 ? f(t.bytes / 1e3, 1) + ' KB' : t.bytes + ' B'}</text>`;
+        const w = Math.max(3, 290 * Math.sqrt(t.bytes / maxBytes));
+        g += `<rect x="${x + 70}" y="${90 + j * 22}" width="${w}" height="16" fill="${c}" opacity="${t.fresh ? 1 : .6 + .1 * t.tier}" ${t.fresh ? `stroke="${css('--text')}"` : ''}/><text x="${x + 76 + w}" y="${102 + j * 22}">tier ${t.tier} · ${t.bytes >= 1e3 ? f(t.bytes / 1e3, 1) + ' KB' : t.bytes + ' B'}</text>`;
       });
       if (!l.inline) {
         const w = Math.min(390, 390 * st.wisc.vlog / ((HDR + VAL) * NKEYS));

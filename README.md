@@ -1,6 +1,6 @@
 # WiscLite
 
-[![site](https://img.shields.io/badge/site-live-5E6B3A)](https://deepanshu16125.github.io/WiscLite/) [![metrics](https://img.shields.io/badge/metrics-dashboard-9C4A2A)](https://deepanshu16125.github.io/WiscLite/metrics.html) ![rust](https://img.shields.io/badge/Rust-2024-3E4A26)
+[![site](https://img.shields.io/badge/site-live-ffb000?labelColor=16140f)](https://deepanshu16125.github.io/WiscLite/) [![metrics](https://img.shields.io/badge/metrics-dashboard-7fd48a?labelColor=16140f)](https://deepanshu16125.github.io/WiscLite/metrics.html) ![rust](https://img.shields.io/badge/Rust-2024-e8dcc0?labelColor=16140f)
 
 **A Rust LSM-tree key-value store that separates keys from values, after the WiscKey paper (USENIX FAST '16).** It also has a baseline mode that stores values inline, so you can measure the difference yourself.
 

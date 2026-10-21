@@ -5,34 +5,39 @@
 <meta property="og:title" content="WiscLite"><meta property="og:description" content="A Rust LSM that appends values once, and only sorts the keys.">
 <meta property="og:image" content="docs/metrics.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="site.css">
 <style>
 .hero{padding:80px 0 64px}
-.hero .sub{font-size:21px;color:var(--band-text);max-width:640px;margin:18px 0 8px}
+.hero .sub{font-size:22px;color:var(--band-muted);max-width:640px;margin:18px 0 8px}
 .heronums{display:flex;gap:56px;flex-wrap:wrap;margin:30px 0 24px}
-.heronums b{display:block;font-family:var(--font-display);font-weight:400;font-size:64px;line-height:1;color:var(--band-accent)}
+.heronums b{display:block;font:700 48px/1.05 var(--font-display);color:var(--accent)}
 .heronums span{font-size:14px;color:var(--band-muted)}
 .hero .limits{font-size:14px;color:var(--accent-soft);margin-top:26px;max-width:640px}
-.btn.ghost{color:var(--band-text)}
+.btn.ghost{color:var(--contrast)}
 ol.path{list-style:none;padding:0;margin:20px 0 0;counter-reset:s}
-ol.path li{counter-increment:s;padding:12px 0 12px 46px;border-bottom:1px solid var(--rule);position:relative}
-ol.path li::before{content:counter(s,decimal-leading-zero);position:absolute;left:0;top:8px;font-family:var(--font-display);font-size:26px;color:var(--accent)}
+ol.path li{counter-increment:s;padding:12px 0 12px 46px;border-bottom:1px dotted var(--rule);position:relative}
+.cols>div:has(ol.path){border:1px solid var(--rule);background:var(--surface);padding:24px 26px}
+.cols>div:has(ol.path:not(.base)){border-color:var(--accent)}
+ol.path li::before{content:counter(s,decimal-leading-zero);position:absolute;left:0;top:12px;font:700 15px var(--font-display);color:var(--accent)}
 ol.path.base li::before{color:var(--contrast)}
 ol.path small{display:block;color:var(--muted)}
-#sim svg text{font-family:var(--font-body);font-size:12px;fill:var(--muted)}
+#sim svg text{font-family:var(--font-display);font-size:12px;fill:var(--muted)}
 #sim .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0}
-#sim button{font:600 14px var(--font-body);background:transparent;border:1px solid var(--text);color:var(--text);padding:8px 14px;cursor:pointer}
-#sim button.on{background:var(--accent);border-color:var(--accent);color:var(--surface)}
-#caption{min-height:3.2em;color:var(--text);font-size:15px;border-left:2px solid var(--accent);padding:4px 12px;margin:10px 0 0}
-.counters{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--rule)}
-.counters div{padding:12px 10px 12px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--muted)}
-.counters b{display:block;font-family:var(--font-display);font-weight:400;font-size:28px;color:var(--text)}
+#sim button{font:700 13px var(--font-display);background:transparent;border:1px solid var(--contrast);color:var(--contrast);padding:8px 16px;cursor:pointer}
+#sim button:hover{box-shadow:var(--glow)}
+#sim-svg{background:var(--surface);border:1px solid var(--rule)}
+#sim button.on{background:var(--contrast);color:var(--on-accent)}
+#caption{min-height:3.2em;color:var(--accent);font:14px/1.6 var(--font-display);border-left:2px solid var(--accent);padding:6px 14px;margin:12px 0 0}
+#caption::before{content:"$ ";color:var(--contrast)}
+.counters{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px dashed var(--rule)}
+.counters div{padding:12px 10px 12px 0;border-bottom:1px dashed var(--rule);font:12px var(--font-display);color:var(--muted)}
+.counters b{display:block;font:700 22px var(--font-display);color:var(--text)}
 .strip{display:grid;grid-template-columns:1fr 1fr;gap:40px}
 .strip ul{list-style:none;padding:0;margin:12px 0 0}
-.strip li{padding:9px 0;border-bottom:1px solid var(--rule)}
-.strip li::before{content:"✓";color:var(--accent);font-weight:600;margin-right:10px}
-.strip .next li::before{content:"○";color:var(--contrast)}
+.strip li{padding:9px 0;border-bottom:1px dotted var(--rule)}
+.strip li::before{content:"[x]";font-family:var(--font-display);font-size:13px;color:var(--accent);font-weight:700;margin-right:10px}
+.strip .next li::before{content:"[ ]";color:var(--contrast)}
 .cites li{margin:8px 0}
 @media (max-width:760px){.strip{grid-template-columns:1fr}.counters{grid-template-columns:repeat(2,1fr)}}
 </style></head><body>
@@ -52,14 +57,14 @@ ol.path small{display:block;color:var(--muted)}
 <section class="surface"><div class="wrap cols">
 <div><div class="label">Use it</div><h2>The whole API, in eight lines</h2>
 <p class="note">A CLI over a library crate. <code>serve</code> runs this site plus a JSON API on localhost.</p></div>
-<pre>wisclite put hello world
-wisclite get hello             # world
-wisclite del hello             # tombstone
-wisclite scan a z              # range [a, z)
-wisclite gc                    # reclaim the vlog
-wisclite stats
-wisclite bench                 # → bench.json
-wisclite serve --port 7878     # site + JSON API</pre>
+<pre><span style="color:var(--contrast)">$</span> wisclite put hello world
+<span style="color:var(--contrast)">$</span> wisclite get hello           <span style="color:var(--accent)"># world</span>
+<span style="color:var(--contrast)">$</span> wisclite del hello           <span style="color:var(--accent)"># tombstone</span>
+<span style="color:var(--contrast)">$</span> wisclite scan a z            <span style="color:var(--accent)"># range [a, z)</span>
+<span style="color:var(--contrast)">$</span> wisclite gc                  <span style="color:var(--accent)"># reclaim the vlog</span>
+<span style="color:var(--contrast)">$</span> wisclite stats
+<span style="color:var(--contrast)">$</span> wisclite bench               <span style="color:var(--accent)"># → bench.json</span>
+<span style="color:var(--contrast)">$</span> wisclite serve --port 7878   <span style="color:var(--accent)"># site + JSON API</span></pre>
 </div></section>
 
 <section><div class="wrap"><div class="label">The idea</div><h2>Same write path, one decision apart</h2>

@@ -4,14 +4,17 @@
 <meta name="description" content="Measured write amplification, compaction, Bloom filters and latency for WiscLite, a Rust WiscKey-style key-value store.">
 <meta property="og:title" content="WiscLite metrics"><meta property="og:image" content="docs/metrics.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="site.css">
 <style>
-svg text{font-family:var(--font-body);font-size:12px;fill:var(--muted)}
+svg text{font-family:var(--font-display);font-size:12px;fill:var(--muted)}
+svg#sweepChart,svg#hdr{background:var(--surface);border:1px solid var(--rule)}
 .trees{display:flex;align-items:flex-end;gap:48px;flex-wrap:wrap;margin-top:20px}
 .trees figure{margin:0}.trees figcaption{font-size:14px;color:var(--muted);margin-top:8px}
-.trees figcaption b{font-family:var(--font-display);font-weight:400;font-size:28px;color:var(--text);display:block}
-.sweepval{font-family:var(--font-display);font-size:30px}
+.trees figcaption b{font:700 24px var(--font-display);color:var(--text);display:block}
+header.band h1{font-size:clamp(40px,6vw,76px)}
+header.band h1 em{color:var(--accent);text-shadow:0 0 24px rgba(127,212,138,.25)}
+.sweepval{font:700 26px var(--font-display);color:var(--contrast)}
 </style></head><body>
 <header class="band"><div class="wrap"><div class="label">Storage engine · WiscKey, FAST '16 · <a href="index.html">overview</a></div>
 <h1>Wisc<em>Lite</em> metrics</h1>
@@ -558,7 +561,7 @@ function render(B){
       $('sweepN').textContent=n.toLocaleString()+' puts';
       $('sweepInfo').textContent=`${f(pb.logical_bytes/1e6,0)} MB logical · baseline ${pb.compactions} compactions (${f(pb.compaction_bytes/1e6,0)} MB rewritten) · WiscKey ${pw.compactions} (${f(pw.compaction_bytes/1e6,1)} MB)`;
       bars($('sweepBars'),[pb,pw].map(p=>({name:p.mode,p,parts:[{v:p.write_amplification,c:col(p.mode)}]})),ymax,x=>f(x.p.write_amplification,2)+'× WA',[{v:1,l:'1.0×'}]);
-      lineChart($('sweepChart'),['Baseline','WiscKey'].map(m=>({c:col(m),pts:ns.map(k=>[k,pt(k,m).write_amplification])})),{xs:ns,xl:'puts (1 KB values)',yl:'write amplification',xfmt:v=>v>=1000?(v/1000)+'k':v,yfmt:v=>f(v,1)+'×',ymax,mark:n});};
+      lineChart($('sweepChart'),['Baseline','WiscKey'].map(m=>({c:col(m),pts:ns.map((k,i)=>[i,pt(k,m).write_amplification])})),{xs:ns.map((_,i)=>i),xl:'puts (1 KB values), one point per real run',yl:'write amplification',xfmt:i=>ns[i]>=1000?(ns[i]/1000)+'k':ns[i],yfmt:v=>f(v,1)+'×',ymax,mark:ns.indexOf(n)});};
     sl.oninput=draw;draw();
   }
   const tm=Math.max(b.puts_per_sec,w.puts_per_sec)*1.1;
