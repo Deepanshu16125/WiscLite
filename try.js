@@ -6,107 +6,97 @@
   const kb = b => b >= 1e6 ? fmt(b / 1e6, 2) + ' MB' : b >= 1e3 ? fmt(b / 1e3, 1) + ' KB' : b + ' B';
   const enc = s => new TextEncoder().encode(s).length;
 
-  // ---------- (a) console ----------
-  const MEM = 4, FANIN = 4;
-  let logical = 0, eng;
-  const mk = inline => ({ inline, wal: [], mem: new Map(), ssts: [], vlog: [], b: { wal: 0, vlog: 0, flush: 0, compact: 0 }, fresh: null });
-  const entryLen = (e, K) => e.t === 'del' ? 1 : e.t === 'ptr' ? 13 : 5 + enc(e.v);
-  const sstLen = (m) => { let n = 0; m.forEach((e, k) => { const K = enc(k); n += 4 + K + entryLen(e, K) + 4 + K + 8; }); return n + 24; };
-  function write(E, k, e) {
-    const K = enc(k);
-    E.wal.push([k, e]); E.b.wal += 8 + 4 + K + entryLen(e, K);
-    E.mem.delete(k); E.mem.set(k, e); E.fresh = k;
-    let ev = '';
-    if (E.mem.size >= MEM) {
-      const m = new Map([...E.mem].sort((a, b) => a[0] < b[0] ? -1 : 1));
-      E.b.flush += sstLen(m); E.ssts.push(m); E.mem = new Map(); E.wal = []; ev = 'flush';
-      if (E.ssts.length >= FANIN) {
-        const all = new Map(); E.ssts.forEach(t => t.forEach((v, kk) => all.set(kk, v)));
-        [...all].forEach(([kk, v]) => { if (v.t === 'del') all.delete(kk); }); // merged down to the oldest table: drop tombstones
-        const m2 = new Map([...all].sort((a, b) => a[0] < b[0] ? -1 : 1));
-        E.b.compact += sstLen(m2); E.ssts = m2.size ? [m2] : []; ev = 'compact';
-      }
-    }
-    return ev;
-  }
-  function lookup(E, k) {
-    let e = E.mem.get(k);
-    if (!e) for (let i = E.ssts.length - 1; i >= 0 && !e; i--) e = E.ssts[i].get(k);
-    if (!e || e.t === 'del') return null;
-    return e.t === 'ptr' ? E.vlog[e.i].v : e.v;
-  }
-  function put(k, v) {
-    logical += enc(k) + enc(v);
-    const a = write(eng.base, k, { t: 'inl', v });
-    eng.wisc.vlog.push({ k, v }); eng.wisc.b.vlog += 8 + enc(v);
-    write(eng.wisc, k, { t: 'ptr', i: eng.wisc.vlog.length - 1 });
-    return a;
-  }
-  function del(k) { logical += enc(k); const a = write(eng.base, k, { t: 'del' }); write(eng.wisc, k, { t: 'del' }); return a; }
-  function scan(a, z) {
-    const keys = new Set();
-    [eng.base.mem, ...eng.base.ssts].forEach(m => m.forEach((_, k) => keys.add(k)));
-    return [...keys].filter(k => k >= a && (!z || k < z)).sort().map(k => [k, lookup(eng.base, k)]).filter(x => x[1] !== null);
-  }
+  // ---------- (a) console: the REAL engine via WebAssembly ----------
+  const WASM = 'web/pkg/wisclite_wasm_bg.wasm?v=7', MEMT = 4096;
+  let base = null, wisc = null, ready = false;
   function out(html, cls) { const d = document.createElement('div'); if (cls) d.className = cls; d.innerHTML = html; $('t-log').appendChild(d); $('t-log').scrollTop = 1e9; }
-  const evMsg = ev => ev === 'compact' ? ' <span class="ok">→ memtable flushed, 4 sstables compacted (baseline rewrote every value, WiscKey only pointers)</span>' : ev === 'flush' ? ' <span class="ok">→ memtable full: flushed to an sstable, WAL truncated</span>' : '';
+  function open() { if (base) { base.free(); wisc.free(); } base = new wasm_bindgen.WiscDb('baseline', MEMT); wisc = new wasm_bindgen.WiscDb('wisckey', MEMT); }
+  const both = f => [f(base), f(wisc)];
+  const statOf = d => JSON.parse(d.stats());
+  function lane(d, name, color) {
+    const S = statOf(d), s = S.stats, files = JSON.parse(d.list_files()), mx = Math.max(1, ...files.map(f => f[1]));
+    const wa = s.logical_bytes ? fmt(s.write_amplification) + '×' : '–';
+    let h = `<h4 style="color:${color}">${name}</h4>`;
+    h += `<div class="lane"><span>memtable</span><span class="cells">${cell(s.memtable_entries + ' entries (RAM)')}</span></div>`;
+    h += `<div class="lane"><span>files</span><span class="cells files" style="display:block">` + files.map(([n, l]) =>
+      `<div><span class="cell" style="border:0;padding:0">${esc(n)}<span style="color:var(--muted)">${kb(l)}</span></span><div class="fbar"><i style="width:${100 * l / mx}%;background:${n.startsWith('vlog') ? 'var(--accent)' : n.endsWith('.sst') ? 'var(--contrast)' : 'var(--accent-soft)'}"></i></div></div>`).join('') + `</span></div>`;
+    h += `<div class="wa">written <b style="color:${color}">${kb(s.physical_bytes)}</b> for ${kb(s.logical_bytes)} of data → write amplification <b style="color:${color}">${wa}</b><br>WAL ${kb(s.wal_bytes)} · ${s.vlog_bytes ? 'vlog ' + kb(s.vlog_bytes) + ' · ' : ''}flush ${kb(s.sst_bytes)} · compaction ${kb(s.compaction_bytes)} · ${s.flushes} flushes · ${s.compactions} compactions · ${s.sstables} sstables</div>`;
+    return h;
+  }
+  const cell = (txt, cls) => `<span class="cell ${cls || ''}">${esc(txt)}</span>`;
+  function render() { if (!ready) return; $('t-base').innerHTML = lane(base, 'Baseline: values inline', 'var(--contrast)'); $('t-wisc').innerHTML = lane(wisc, 'WiscKey: values in the vlog', 'var(--accent)'); }
+  const delta = (before) => { const a = both(d => statOf(d).stats); const ev = [];
+    if (a[0].compactions > before[0].compactions || a[1].compactions > before[1].compactions) ev.push('compaction');
+    else if (a[0].flushes > before[0].flushes || a[1].flushes > before[1].flushes) ev.push('flush');
+    return ev.length ? ` <span class="ok">→ ${ev[0] === 'compaction' ? 'a real compaction ran (see the files: sstables merged)' : 'a memtable reached 4 KiB and flushed to a real .sst file'}</span>` : ''; };
   function run(line) {
     line = line.trim(); if (!line) return;
     out(esc(line), 'c');
+    if (!ready) { out('engine still loading…', 'er'); return; }
     const [cmd, ...r] = line.split(/\s+/);
+    const before = both(d => statOf(d).stats);
     try {
       switch ((cmd || '').toLowerCase()) {
-        case 'put': {
-          if (r.length < 2) throw 'usage: put KEY VALUE';
-          const ev = put(r[0], r.slice(1).join(' '));
-          out('OK  <span class="ok">baseline: value → WAL + memtable · WiscKey: value → vlog@' + (eng.wisc.vlog.length - 1) + ', 13-byte pointer → memtable</span>' + evMsg(ev)); break;
-        }
-        case 'get': { if (!r[0]) throw 'usage: get KEY'; const v = lookup(eng.base, r[0]), w = lookup(eng.wisc, r[0]); out(v === null ? '(not found)' : esc(v) + (w === v ? '  <span class="ok">(WiscKey followed the pointer into the vlog)</span>' : '')); break; }
-        case 'del': { if (!r[0]) throw 'usage: del KEY'; const ev = del(r[0]); out('OK  <span class="ok">tombstone written; it hides older versions until compaction drops it</span>' + evMsg(ev)); break; }
-        case 'scan': { const rows = scan(r[0] || '', r[1]); out(rows.length ? rows.map(([k, v]) => esc(k) + '\t' + esc(short(v))).join('\n') + `\n(${rows.length} keys, in order)` : '(no keys in range)'); break; }
-        case 'fill': {
-          const n = Math.min(64, Math.max(1, +r[0] || 8)); let ev = '';
-          for (let i = 0; i < n; i++) { const e = put('k' + String(Math.floor(Math.random() * 900) + 100), 'x'.repeat(1024)); if (e) ev = e === 'compact' || !ev ? e : ev; }
-          out(`OK  put ${n} random keys with 1 KB values` + evMsg(ev)); break;
-        }
-        case 'crash': {
-          const nb = eng.base.wal.length, nw = eng.wisc.wal.length;
-          eng.base.mem = new Map(); eng.wisc.mem = new Map(); render();
-          out('<span class="er">⚡ power lost: both memtables are gone.</span>');
-          setTimeout(() => {
-            [eng.base, eng.wisc].forEach(E => E.wal.forEach(([k, e]) => { E.mem.delete(k); E.mem.set(k, e); }));
-            out(`<span class="ok">recovered: replayed ${nb} WAL records (baseline) and ${nw} (WiscKey); the memtables are rebuilt and no acknowledged write was lost.</span>`);
-            render();
-          }, 700);
-          return;
-        }
-        case 'reset': reset(); out('fresh stores'); return;
-        case 'help': out('put KEY VALUE · get KEY · del KEY · scan [START] [END] · fill N (1 KB values) · crash · reset'); break;
+        case 'put': if (r.length < 2) throw 'usage: put KEY VALUE'; both(d => d.put(r[0], r.slice(1).join(' '))); out('OK' + delta(before)); break;
+        case 'get': { if (!r[0]) throw 'usage: get KEY'; const [a, b] = both(d => d.get(r[0])); out(a == null ? '(not found)' : esc(a) + (b === a ? ' <span class="ok">(WiscKey followed its pointer into the vlog)</span>' : ' <span class="er">mismatch!</span>')); break; }
+        case 'del': if (!r[0]) throw 'usage: del KEY'; both(d => d.del(r[0])); out('OK <span class="ok">tombstone written</span>' + delta(before)); break;
+        case 'scan': { const rows = JSON.parse(base.scan(r[0] || '', r[1] || '')); out(rows.length ? rows.slice(0, 40).map(([k, v]) => esc(k) + '\t' + esc(v)).join('\n') + `\n(${rows.length} keys, in order)` : '(no keys in range)'); break; }
+        case 'fill': { const n = Math.min(5000, Math.max(1, +r[0] || 50)); both(d => d.put_random(n, 1024)); out(`OK  ${n} random puts of 1 KB into each engine` + delta(before)); break; }
+        case 'flush': both(d => d.flush()); out('OK <span class="ok">memtables written to .sst files, WAL truncated</span>'); break;
+        case 'compact': both(d => d.compact()); out('OK <span class="ok">all sstables merged into one, tombstones dropped</span>'); break;
+        case 'gc': { const [a, b] = both(d => JSON.parse(d.gc())); out(`OK  reclaimed ${kb(a.reclaimed_bytes)} (baseline) · ${kb(b.reclaimed_bytes)} (WiscKey: new vlog generation, live values only)`); break; }
+        case 'crash': { const [a, b] = both(d => JSON.parse(d.crash_and_recover()));
+          out(`<span class="er">⚡ crashed: engines dropped without flushing (memtables had ${a.memtable_before} / ${b.memtable_before} entries).</span>`);
+          out(`<span class="ok">recovered: reopened on the same files; WAL replay rebuilt ${a.replayed_entries} / ${b.replayed_entries} memtable entries from ${kb(a.wal_bytes)} / ${kb(b.wal_bytes)} of WAL.</span>`); break; }
+        case 'stats': out(esc(JSON.stringify(statOf(wisc).stats))); break;
+        case 'files': out(both(d => d.list_files()).map(esc).join('\n')); break;
+        case 'reset': open(); out('fresh engines'); break;
+        case 'help': out('put KEY VALUE · get KEY · del KEY · scan [START] [END] · fill N (1 KB values) · flush · compact · gc · crash · stats · files · reset'); break;
         default: throw 'unknown command: ' + cmd + '. Try help';
       }
-    } catch (e) { out(esc(e), 'er'); }
+    } catch (e) { out(esc(e && e.message ? e.message : e), 'er'); }
     render();
   }
-  const cell = (txt, cls) => `<span class="cell ${cls || ''}">${esc(txt)}</span>`;
-  const short = v => v.length > 10 ? v.slice(0, 8) + '…' + (enc(v) >= 1000 ? '(' + kb(enc(v)) + ')' : '') : v;
-  function lane(E, name, color) {
-    const label = (k, e) => e.t === 'del' ? k : e.t === 'ptr' ? k + '→@' + e.i : k + '=' + short(e.v);
-    const phys = E.b.wal + E.b.vlog + E.b.flush + E.b.compact;
-    let h = `<h4 style="color:${color}">${name}</h4>`;
-    h += `<div class="lane"><span>WAL</span><span class="cells">${cell(E.wal.length + ' records')}</span></div>`;
-    h += `<div class="lane"><span>memtable</span><span class="cells">${[...E.mem].map(([k, e]) => cell(label(k, e), (e.t === 'del' ? 'del ' : '') + (k === E.fresh ? 'new' : ''))).join('') || cell('(empty)')}</span></div>`;
-    E.ssts.slice().reverse().forEach((m, i) => { h += `<div class="lane"><span>sst ${E.ssts.length - i}</span><span class="cells">${[...m].slice(0, 10).map(([k, e]) => cell(label(k, e), e.t === 'del' ? 'del' : '')).join('')}${m.size > 10 ? cell('+' + (m.size - 10)) : ''}</span></div>`; });
-    if (!E.inline) h += `<div class="lane"><span>vlog</span><span class="cells">${E.vlog.slice(-12).map((x, j) => cell('@' + (E.vlog.length - Math.min(12, E.vlog.length) + j) + ' ' + short(x.v))).join('') || cell('(empty)')}${E.vlog.length > 12 ? cell('…' + E.vlog.length + ' values') : ''}</span></div>`;
-    h += `<div class="wa">written <b style="color:${color}">${kb(phys)}</b> for ${kb(logical)} of data → write amplification <b style="color:${color}">${logical ? fmt(phys / logical) + '×' : '–'}</b><br>WAL ${kb(E.b.wal)} · ${E.inline ? '' : 'vlog ' + kb(E.b.vlog) + ' · '}flush ${kb(E.b.flush)} · compaction ${kb(E.b.compact)}</div>`;
-    return h;
-  }
-  function render() { $('t-base').innerHTML = lane(eng.base, 'Baseline: values inline', 'var(--contrast)'); $('t-wisc').innerHTML = lane(eng.wisc, 'WiscKey: values in the vlog', 'var(--accent)'); }
-  function reset() { logical = 0; eng = { base: mk(true), wisc: mk(false) }; render(); }
   if ($('t-form')) {
-    reset();
-    out('Type <span class="c" style="display:inline">help</span>, or click a chip. Tip: <b>fill 12</b> writes 1 KB values; tiny values show why WiscKey pays off only for larger values.');
     $('t-form').addEventListener('submit', e => { e.preventDefault(); run($('t-in').value); $('t-in').value = ''; });
     document.querySelectorAll('.tchips button').forEach(b => b.addEventListener('click', () => run(b.dataset.c)));
+    out('Loading the real engine…');
+    if (typeof wasm_bindgen === 'undefined') { $('t-status').textContent = 'Could not load the WebAssembly engine.'; $('t-status').classList.add('err'); }
+    else wasm_bindgen({ module_or_path: WASM }).then(() => {
+      open(); ready = true; render();
+      $('t-status').textContent = 'This is the actual WiscLite engine compiled to WebAssembly · loaded';
+      out('Ready: two real engines. Type <b>help</b>, or try <b>fill 50</b> then <b>crash</b>.');
+    }).catch(e => { $('t-status').textContent = 'WebAssembly failed to load: ' + e; $('t-status').classList.add('err'); });
+  }
+
+  // ---------- in-browser benchmark (Web Worker) ----------
+  if ($('bgo')) {
+    $('bgo').addEventListener('click', () => {
+      const n = +$('bn').value; $('bgo').disabled = true; $('bout').innerHTML = ''; $('bprog').style.width = '0%';
+      $('bstat').textContent = 'starting worker…';
+      const w = new Worker('bench-worker.js?v=7');
+      w.onmessage = ({ data: m }) => {
+        if (m.type === 'progress') { $('bprog').style.width = (100 * m.done / m.total) + '%'; $('bstat').textContent = `${m.mode}: ${m.phase} ${m.done.toLocaleString()} / ${m.total.toLocaleString()}`; }
+        else if (m.type === 'done') { $('bgo').disabled = false; $('bstat').textContent = 'done, measured on your machine'; $('bprog').style.width = '100%'; drawBench(m.results); w.terminate(); }
+        else if (m.type === 'error') { $('bgo').disabled = false; $('bstat').textContent = 'error: ' + m.message; w.terminate(); }
+      };
+      w.onerror = e => { $('bgo').disabled = false; $('bstat').textContent = 'worker error: ' + e.message; };
+      w.postMessage({ n, valueSize: 1024 });
+    });
+  }
+  function drawBench(R) {
+    const b = R.find(r => r.mode === 'baseline'), w = R.find(r => r.mode === 'wisckey');
+    const max = Math.max(b.stats.write_amplification, w.stats.write_amplification) * 1.08;
+    const row = (r, c) => { const s = r.stats, L = s.logical_bytes; return `<div class="row"><div class="name">${r.mode}</div><div class="bar">` +
+      [[s.wal_bytes, 'var(--accent-soft)'], [s.vlog_bytes, 'var(--accent)'], [s.sst_bytes, 'var(--contrast)'], [s.compaction_bytes, 'var(--accent-deep)']].map(([v, col]) => `<i style="width:${100 * v / L / max}%;background:${col}"></i>`).join('') +
+      `<b class="tick" style="left:${100 / max}%"></b></div><div class="val" style="color:${c}">${fmt(s.write_amplification, 3)}× WA</div></div>`; };
+    const tm = Math.max(b.puts_per_sec, w.puts_per_sec) * 1.1;
+    const trow = (r, c) => `<div class="row"><div class="name">${r.mode} put</div><div class="bar"><i style="width:${100 * r.puts_per_sec / tm}%;background:${c}"></i></div><div class="val">${fmt(r.puts_per_sec / 1000, 1)}k ops/s</div></div>`;
+    $('bout').innerHTML = `<div class="chart">${row(b, 'var(--contrast)')}${row(w, 'var(--accent)')}</div>
+      <div class="legend"><span><i style="background:var(--accent-soft)"></i>WAL</span><span><i style="background:var(--accent)"></i>vlog</span><span><i style="background:var(--contrast)"></i>flush</span><span><i style="background:var(--accent-deep)"></i>compaction</span></div>
+      <div class="chart">${trow(b, 'var(--contrast)')}${trow(w, 'var(--accent)')}</div>
+      <div class="kpis">${[[fmt(b.stats.write_amplification / w.stats.write_amplification) + '×', 'less write amplification'], [b.stats.compactions + ' → ' + w.stats.compactions, 'compactions'], [fmt(b.get_us, 1) + ' / ' + fmt(w.get_us, 1) + ' µs', 'mean get (baseline / WiscKey)'], [kb(b.disk_bytes) + ' / ' + kb(w.disk_bytes), 'files in memory']].map(k => `<div class="kpi"><b>${k[0]}</b><span>${k[1]}</span></div>`).join('')}</div>
+      <p class="note">${b.n.toLocaleString()} puts × 1 KB per engine · ${fmt(b.secs + w.secs, 1)} s total · real engine in WebAssembly in a Web Worker on your device · ${esc(navigator.userAgent.split(') ')[0].replace('Mozilla/5.0 (', ''))}</p>`;
   }
 
   // ---------- (b) estimator ----------

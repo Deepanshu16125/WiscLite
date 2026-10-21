@@ -62,6 +62,14 @@ ol.path small{display:block;color:var(--muted)}
 .tviz .cell.del{text-decoration:line-through;color:#ff7a6b}.tviz .cell.new{box-shadow:0 0 0 1px var(--contrast)}
 .tviz .wa{margin-top:12px;border-top:1px dashed var(--rule);padding-top:10px;color:var(--muted)}.tviz .wa b{font-size:20px}
 .slider span{display:block;font:13px var(--font-display);color:var(--muted)}.slider b{color:var(--text);font-size:18px;margin-left:8px}
+.wasmflag{display:inline-block;font:700 13px var(--font-display);color:var(--on-accent);background:var(--accent);padding:4px 10px;margin:6px 0}
+.wasmflag.err{background:#ff7a6b}
+.tviz .files .cell{display:flex;justify-content:space-between;gap:12px}
+.fbar{height:6px;background:var(--rule);margin:2px 0 6px}.fbar i{display:block;height:100%}
+.bctl{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:14px 0}
+.bctl select{background:var(--surface);color:var(--text);border:1px solid var(--rule);font:14px var(--font-display);padding:8px}
+.bctl .btn{margin:0;cursor:pointer}.bctl .btn:disabled{opacity:.5;cursor:wait}
+.prog{height:10px;border:1px solid var(--rule);background:var(--surface)}.prog i{display:block;height:100%;width:0;background:var(--contrast);transition:width .2s}
 </style></head><body>
 <header class="band hero"><div class="wrap">
 <div class="label">Storage engine · WiscKey, FAST '16</div>
@@ -85,14 +93,23 @@ ol.path small{display:block;color:var(--muted)}
 <div class="cols" style="margin-top:18px">
 <div class="counters" id="c-base"></div><div class="counters" id="c-wisc"></div></div>
 </div></section>
-<section class="surface" id="try"><div class="wrap"><div class="label">Try it</div><h2>Type into both engines at once</h2>
-<p class="note">A client-side toy: each command runs against a baseline store and a WiscKey store side by side. The memtable holds 4 entries and flushes into an sstable, and every 4 sstables merge into one. <code>crash</code> wipes the memtable and replays the WAL. Byte counts use the engine's real record sizes.</p>
+<section class="surface" id="try"><div class="wrap"><div class="label">Try it · real engine</div><h2>Type into the actual WiscLite engine</h2>
+<p class="wasmflag" id="t-status">Loading the WiscLite engine (WebAssembly)…</p>
+<p class="note">This is the actual WiscLite engine compiled to WebAssembly: the same Rust code as the CLI, running in your tab on an in-memory file system. Every command runs against two real instances, baseline (values inline) and WiscKey (values in the vlog), each with a 4 KiB memtable so flushes and compactions happen quickly. Below each one you see its real files with their sizes and its real counters. <code>crash</code> drops the engine without flushing and reopens it, so the memtable is rebuilt by replaying the real WAL.</p>
 <div class="tryio">
 <div id="t-log" class="tlog" aria-live="polite"></div>
-<form id="t-form" class="tform" autocomplete="off"><span class="pr">wisclite&gt;</span><input id="t-in" spellcheck="false" placeholder="put user:1 dee   ·   get user:1   ·   del user:1   ·   scan a z   ·   crash   ·   help" aria-label="command"><button type="submit">run</button></form>
-<div class="tchips"><button data-c="put user:1 dee">put user:1 dee</button><button data-c="put user:2 eve">put user:2 eve</button><button data-c="get user:1">get user:1</button><button data-c="del user:2">del user:2</button><button data-c="scan a z">scan a z</button><button data-c="fill 12">fill 12</button><button data-c="crash" class="warn">crash ⚡</button><button data-c="reset">reset</button></div>
+<form id="t-form" class="tform" autocomplete="off"><span class="pr">wisclite&gt;</span><input id="t-in" spellcheck="false" placeholder="put user:1 dee · get user:1 · del user:1 · scan a z · fill 50 · flush · compact · gc · crash · help" aria-label="command"><button type="submit" id="t-run">run</button></form>
+<div class="tchips"><button data-c="put user:1 dee">put user:1 dee</button><button data-c="put user:2 eve">put user:2 eve</button><button data-c="get user:1">get user:1</button><button data-c="del user:2">del user:2</button><button data-c="scan a z">scan a z</button><button data-c="fill 50">fill 50</button><button data-c="flush">flush</button><button data-c="compact">compact</button><button data-c="gc">gc</button><button data-c="crash" class="warn">crash ⚡</button><button data-c="reset">reset</button></div>
 </div>
 <div class="cols tviz"><div id="t-base"></div><div id="t-wisc"></div></div>
+</div></section>
+
+<section class="sand" id="bench"><div class="wrap"><div class="label">Your machine</div><h2>Run the benchmark in your browser</h2>
+<p class="wasmflag">This is the actual WiscLite engine compiled to WebAssembly, running in a Web Worker on your device.</p>
+<p class="note">N random puts of 1 KB values into each engine (4 MiB memtable, size-tiered compaction), followed by 10,000 random gets. Byte counts should match the published numbers exactly; throughput is your machine's, in WebAssembly, so it is slower than native.</p>
+<div class="bctl"><label>puts <select id="bn"><option>10000</option><option selected>25000</option><option>50000</option></select></label><button id="bgo" class="btn primary" type="button">&gt; Run benchmark</button><span id="bstat" class="note"></span></div>
+<div class="prog"><i id="bprog"></i></div>
+<div id="bout"></div>
 </div></section>
 
 <section class="sand" id="est"><div class="wrap"><div class="label">What if</div><h2>Drag the value size and see the gap move</h2>
@@ -643,6 +660,7 @@ ol.path small{display:block;color:var(--muted)}
   ]
 };
 </script>
-<script src="play.js?v=5"></script>
-<script src="try.js?v=6"></script>
+<script src="play.js?v=7"></script>
+<script src="web/pkg/wisclite_wasm.js?v=7"></script>
+<script src="try.js?v=7"></script>
 </body></html>

@@ -1,0 +1,17 @@
+[package]
+name = "wisclite-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "The real WiscLite engine compiled to WebAssembly (in-memory file system)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wisclite = { path = ".." }
+wasm-bindgen = "=0.2.100"
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = true

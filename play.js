@@ -73,7 +73,7 @@
     $('caption').textContent = c; draw();
   }
   function stop() { clearInterval(timer); timer = null; $('b-play').textContent = 'Play'; $('b-play').classList.remove('on'); }
-  function play() { if (timer) return stop(); $('b-play').textContent = 'Pause'; $('b-play').classList.add('on'); timer = setInterval(step, 1000 / +$('b-speed').value); }
+  function play() { if (timer) return stop(); if (st.i >= NKEYS) reset(); $('b-play').textContent = 'Pause'; $('b-play').classList.add('on'); timer = setInterval(step, 1000 / +$('b-speed').value); }
 
   function draw() {
     const svg = $('sim-svg'); if (!svg) return;

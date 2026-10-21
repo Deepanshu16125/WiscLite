@@ -1,3 +1,4 @@
 target/
 wisclite-data/
 *.tmp
+wasm/target/

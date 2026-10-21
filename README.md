@@ -72,9 +72,14 @@ Each run uses random 16-byte keys with 1,024-byte random values, a 4 MiB memtabl
 - **Dashboard:** https://deepanshu16125.github.io/WiscLite/metrics.html shows the WA stack with a 1.0× tick, area-true tree sizes, a measured compaction sweep slider (10k–500k puts), throughput, p50/p99/mean, and the real percentile spectrum.
 - All design tokens (palette and fonts) live in one `:root` block in `site.css`. After a new bench, run `python3 scripts/embed_bench.py` to refresh the offline fallback copy.
 
+## The real engine in your browser (WebAssembly)
+File I/O goes through a `Storage` trait (`src/storage.rs`). `StdFs` is the native backend (`std::fs` with cached handles), and `MemFs` is an in-memory file system. The `wasm/` crate compiles the **unchanged engine** to `wasm32-unknown-unknown` on `MemFs` and exposes `put/get/del/scan/flush/compact/gc/crash_and_recover/stats/list_files` through wasm-bindgen. Build it with `scripts/build_wasm.sh`; the output goes to `web/pkg/`, which is about 270 KB of wasm.
+- **Try it (landing page):** two real engine instances, baseline and WiscKey, with 4 KiB memtables. It shows their real files (WAL, vlog, `.sst`, MANIFEST, with sizes) and real counters. `crash` drops an engine without flushing and reopens it, so the memtable is rebuilt by replaying the real WAL.
+- **Run benchmark in your browser:** 10k–50k puts of 1 KB into both engines inside a Web Worker, with a progress bar. Byte counts match the native runs exactly (25k puts: 2.722× vs 1.097× in both), and throughput is the visitor's own machine.
+
 ## Run it
 ```bash
-cargo test --release                      # 22 tests
+cargo test --release                      # 23 tests (+1 in wasm/)
 cargo build --release
 B=./target/release/wisclite
 $B put hello world && $B get hello && $B del hello && $B get hello
@@ -91,9 +96,9 @@ $B bench --sweep 10000,50000,200000       # sizes for the dashboard's compaction
 **HTTP API** (`serve`, bound to 127.0.0.1 only): `GET /api/stats`, `POST /api/put {"key","value"}`, `GET /api/get?key=` (or POST), `POST /api/del {"key"}`, `GET /api/scan?start=&end=&limit=`, `POST /api/gc`, `GET /bench.json`. The dashboard is served from `./metrics.html`, falling back to a copy embedded in the binary.
 
 ## Tests
-`cargo test` runs 22 tests:
+`cargo test` runs 23 tests (plus 1 wasm-API test in `wasm/`):
 - **Unit:** entry round-trips, memtable ordering, vlog checksums, and Bloom filter (no false negatives, FPR < 3%).
-- **Engine:** put/get in both modes, newest-wins across flushes, tombstones shadowing older tables, WAL crash recovery, torn and corrupt WAL, sstable ordering and binary search, auto-flush and reopen, mode persistence, the tree being more than 10× smaller, Bloom skips and FPR, compaction keeping the newest data across reopen, full compaction dropping tombstones, partial compaction keeping shadowing tombstones, ordered scans that merge memtable and tables, GC reclaiming space and surviving reopen, and orphan-file cleanup via MANIFEST.
+- **Engine:** put/get in both modes, newest-wins across flushes, tombstones shadowing older tables, WAL crash recovery, torn and corrupt WAL, sstable ordering and binary search, auto-flush and reopen, mode persistence, the tree being more than 10× smaller, Bloom skips and FPR, compaction keeping the newest data across reopen, full compaction dropping tombstones, partial compaction keeping shadowing tombstones, ordered scans that merge memtable and tables, GC reclaiming space and surviving reopen, and orphan-file cleanup via MANIFEST, and a full put/compact/GC/crash-recovery cycle on the in-memory `MemFs` backend.
 - **HTTP:** put/get/del/scan/stats/gc, dashboard, 400 and 404 responses.
 
 ## Limitations (honest list)

@@ -368,6 +368,16 @@ impl Db {
         Ok(t)
     }
 
+    /// Carry I/O counters over from a previous process/instance (used after a
+    /// simulated crash so cumulative write amplification stays meaningful).
+    pub fn adopt_counters(&mut self, prev: &Stats) {
+        let mut s = prev.clone();
+        s.vlog_bytes_retired = prev.vlog_bytes;
+        self.wal.bytes_written += prev.wal_bytes;
+        s.bloom_fpr = 0.0;
+        self.stats = s;
+    }
+
     pub fn stats(&self) -> Stats {
         let mut s = self.stats.clone();
         s.wal_bytes = self.wal.bytes_written;
